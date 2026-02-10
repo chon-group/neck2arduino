@@ -80,7 +80,7 @@ enum PerceptionType : uint8_t {
 
 struct TacitEntry {
   const char* apparatus; // PROGMEM string (PSTR)
-  const char* knowledge; // PROGMEM string (PSTR)
+  const char* skill; // PROGMEM string (PSTR)
   const char* context;   // PROGMEM string (PSTR) or nullptr => true
   const char* plan;      // PROGMEM string (PSTR)
 };
@@ -404,7 +404,7 @@ public:
 
       // Read pointers from PROGMEM/flash-stored struct
       const char* appP = (const char*)pgm_read_ptr(&e->apparatus);
-      const char* knP  = (const char*)pgm_read_ptr(&e->knowledge);
+      const char* knP  = (const char*)pgm_read_ptr(&e->skill);
       const char* ctxP = (const char*)pgm_read_ptr(&e->context);
       const char* plP  = (const char*)pgm_read_ptr(&e->plan);
 
@@ -417,7 +417,7 @@ public:
       
       char tempBuffer[128];
       copyPROGMEM(knP, tempBuffer, sizeof(tempBuffer));
-      _JSONmsg["knowledge"] = tempBuffer;
+      _JSONmsg["skill"] = tempBuffer;
 
       if (ctxP) copyPROGMEM(ctxP, tempBuffer, sizeof(tempBuffer));
       _JSONmsg["context"]   = ctxP ? tempBuffer : nullptr;
