@@ -469,10 +469,9 @@ public:
 
   void sendTriebJSON(const char* elementName, const char* triebName, const NECKArgs* argsOrNull, double drang) {
     _JSONmsg.clear();
-    _JSONmsg["trieb"]      = triebName;
-    _JSONmsg["element"]    = elementName;  
-    _JSONmsg["drang"] = drang;
-    _JSONmsg["apparatus"] = _name;
+    _JSONmsg["trieb"]   = triebName;
+    _JSONmsg["element"] = elementName;  
+    _JSONmsg["drang"]   = drang;
 
     if (argsOrNull && argsOrNull->size() > 0) {
       for (uint8_t i = 0; i < argsOrNull->size(); i++) {
