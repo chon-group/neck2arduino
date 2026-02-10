@@ -170,24 +170,24 @@ private:
    ========================= */
 
 struct PerceptReturn {
-  PerceptionResponse response;
+  PerceptionResponse status;
   bool hasArgs;
   NECKArgs args;
 
-  PerceptReturn() : response(PERCEPTED), hasArgs(false) {}
+  PerceptReturn() : status(PERCEPTED), hasArgs(false) {}
 
   // status only
-  PerceptReturn(PerceptionResponse r) : response(r), hasArgs(false) {}
+  PerceptReturn(PerceptionResponse r) : status(r), hasArgs(false) {}
 
   // args => PERCEPTED
-  PerceptReturn(const NECKArgs& a) : response(PERCEPTED), hasArgs(true), args(a) {}
+  PerceptReturn(const NECKArgs& a) : status(PERCEPTED), hasArgs(true), args(a) {}
 
   // primitives => PERCEPTED + args[0]
-  PerceptReturn(bool x) : response(PERCEPTED), hasArgs(true) { args.add(x); }
-  PerceptReturn(int32_t x) : response(PERCEPTED), hasArgs(true) { args.add(x); }
-  PerceptReturn(int x) : response(PERCEPTED), hasArgs(true) { args.add(x); } // fixes ambiguity
-  PerceptReturn(float x) : response(PERCEPTED), hasArgs(true) { args.add(x); }
-  PerceptReturn(const String& x) : response(PERCEPTED), hasArgs(true) { args.add(x); }
+  PerceptReturn(bool x) : status(PERCEPTED), hasArgs(true) { args.add(x); }
+  PerceptReturn(int32_t x) : status(PERCEPTED), hasArgs(true) { args.add(x); }
+  PerceptReturn(int x) : status(PERCEPTED), hasArgs(true) { args.add(x); } // fixes ambiguity
+  PerceptReturn(float x) : status(PERCEPTED), hasArgs(true) { args.add(x); }
+  PerceptReturn(const String& x) : status(PERCEPTED), hasArgs(true) { args.add(x); }
 };
 
 /* =========================
@@ -314,7 +314,7 @@ public:
         if (!any){
           _JSONmsg.clear(); 
           _JSONmsg["apparatus"]   = _name;
-          _JSONmsg["response"]    = actionResponseToStr(ActionResponse::UNKNOWN);
+          _JSONmsg["bodyResponse"]    = actionResponseToStr(ActionResponse::UNKNOWN);
           _JSONmsg["request"]     = action;
           _JSONmsg["apparatusID"] = _apparatusID;
           _jslp.transmit(_JSONmsg);
@@ -330,7 +330,7 @@ public:
 
     _JSONmsg.clear(); 
     _JSONmsg["apparatus"]   = _name;
-    _JSONmsg["response"]    = actionResponseToStr(ActionResponse::EXECUTED);
+    _JSONmsg["bodyResponse"]    = actionResponseToStr(ActionResponse::EXECUTED);
     _JSONmsg["request"]     = "getPercepts";
     _JSONmsg["apparatusID"] = _apparatusID;
     _jslp.transmit(_JSONmsg);
@@ -342,7 +342,7 @@ public:
       _JSONmsg["percept"]     = p->perceptName;
       _JSONmsg["element"] = p->elementName;
       _JSONmsg["type"]     = perceptionTypeToStr(p->type);
-      _JSONmsg["response"]  = perceptionResponseToStr(ret.response);
+      _JSONmsg["status"]  = perceptionResponseToStr(ret.status);
 
       if(ret.hasArgs){
         for (uint8_t i = 0; i < ret.args.size(); i++) {
@@ -366,7 +366,7 @@ public:
 
     _JSONmsg.clear(); 
     _JSONmsg["apparatus"]   = _name;
-    _JSONmsg["response"]    = actionResponseToStr(ActionResponse::EXECUTED);
+    _JSONmsg["bodyResponse"]    = actionResponseToStr(ActionResponse::EXECUTED);
     _JSONmsg["request"]     = "getActions";
     _JSONmsg["apparatusID"] = _apparatusID;
     _jslp.transmit(_JSONmsg);
@@ -386,7 +386,7 @@ public:
 
     _JSONmsg.clear(); 
     _JSONmsg["apparatus"]   = _name;
-    _JSONmsg["response"]    = actionResponseToStr(ActionResponse::EXECUTED);
+    _JSONmsg["bodyResponse"]    = actionResponseToStr(ActionResponse::EXECUTED);
     _JSONmsg["request"]     = "getKnowHow";
     _JSONmsg["apparatusID"] = _apparatusID;
     _jslp.transmit(_JSONmsg);
@@ -492,7 +492,7 @@ public:
   void sendActionResultJSON(const char* elementName, const char* actionName, ActionResponse r) {
     _JSONmsg.clear(); 
     _JSONmsg["apparatus"]   = _name;
-    _JSONmsg["response"]    = actionResponseToStr(r);
+    _JSONmsg["bodyResponse"]    = actionResponseToStr(r);
     _JSONmsg["request"]     = actionName;
     _JSONmsg["apparatusID"] = _apparatusID;
     _JSONmsg["element"]     = elementName;

@@ -92,8 +92,8 @@ Perceptions expose bodily states to the agent’s mind and are classified by sou
 /*  perceive()            <-- agent level 
   {"msg":"getPercepts"}    <-- communication 
 
-{"percept":"ledStatus","element":"led","type":"proprioception","response":"percepted","args":[1]} <-- communication reply
-{"percept":"motorStatus","element":"motor","type":"proprioception","response":"percepted","args":["running"]} <-- communication reply
+{"percept":"ledStatus","element":"led","type":"proprioception","status":"percepted","args":[1]} <-- communication reply
+{"percept":"motorStatus","element":"motor","type":"proprioception","status":"percepted","args":["running"]} <-- communication reply
 
 +motorStatus(running).  <-- agent level
 +ledStatus(1).          <-- agent level
@@ -121,7 +121,7 @@ Actions define what the body can do and expose **capabilities**, not intentions.
 ```cpp
 /* act(toggleLED); <-- agent level
     {"msg":"toggleLED"}    <-- communication
-    {"apparatus":"myApparatus","response":"executed","request":"toggleLED","apparatusID":3464630983,"element":"led"} <-- communication replay
+    {"apparatus":"myApparatus","bodyResponse":"executed","request":"toggleLED","apparatusID":3464630983,"element":"led"} <-- communication replay
 */
 Action(led, toggleLED) {
   digitalWrite(13, !digitalRead(13));
@@ -130,7 +130,7 @@ Action(led, toggleLED) {
 
 /* act(machine(goAhead));        <-- agent level
     {"msg":"machine","args":["goAhead"]} <-- communication
-    {"apparatus":"myApparatus","response":"already","request":"machine","apparatusID":3464630983,"element":"motor"} <-- communication replay
+    {"apparatus":"myApparatus","bodyResponse":"already","request":"machine","apparatusID":3464630983,"element":"motor"} <-- communication replay
 */
 Action (motor,machine){
   if(!ActionArgs.isString(0)) return INVALID; 
