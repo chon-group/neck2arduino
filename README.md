@@ -136,7 +136,8 @@ Action (motor,machine){
   if(ActionArgs.asString(0) == "goAhead") goAheadFunction();
   if(ActionArgs.asString(0) == "stopRightNow") stopRightNow();
   
-  return EXECUTED;  
+  return EXECUTED;
+}
 
 ```
 
