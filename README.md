@@ -6,6 +6,9 @@ NECK was conceived as a concrete instantiation of an **embodied cognition perspe
 
 This framework is grounded on the research presented in *My Body, My Perceptions: A Shift from Computationalism to Embodied Cognition in BDI-agent-based Embedded Systems* (AAMAS 2026).
 
+<img width="1304" height="699" alt="image" src="https://github.com/user-attachments/assets/e8c01b9e-8fb1-43dc-90be-f91e6145021e" />
+
+
 ---
 
 ## Motivation
