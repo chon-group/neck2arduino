@@ -86,9 +86,27 @@ Element(myApparatus, motor);
 Perceptions expose bodily states to the agent’s mind and are classified by source.
 
 ```cpp
+/*  perceive()            <-- agent level 
+  {"msg":"getPercepts"}    <-- communication 
+
+{"belief":"ledStatus","element":"led","type":"proprioception","response":"percepted","args":[1]} <-- communication reply
+{"belief":"motorStatus","element":"motor","type":"proprioception","response":"percepted","args":["running"]} <-- communication reply
+
++motorStatus(running).  <-- agent level
++ledStatus(1).          <-- agent level
+*/
+
 Perception(led, ledStatus, PROPRIOCEPTION) {
   return digitalRead(13);
 }
+
+
+Perception(motor, motorStatus, PROPRIOCEPTION) {
+  return strMotorStatus;
+} 
+
+
+
 ```
 
 ---
@@ -98,10 +116,28 @@ Perception(led, ledStatus, PROPRIOCEPTION) {
 Actions define what the body can do and expose **capabilities**, not intentions.
 
 ```cpp
+/* act(toggleLED); <-- agent level
+    {"msg":"toggleLED"}    <-- communication
+    {"apparatus":"myApparatus","response":"executed","request":"toggleLED","apparatusID":3464630983,"element":"led"} <-- communication replay
+*/
 Action(led, toggleLED) {
   digitalWrite(13, !digitalRead(13));
   return EXECUTED;
 }
+
+/* act(machine(goAhead));        <-- agent level
+    {"msg":"machine","args":["goAhead"]} <-- communication
+    {"apparatus":"myApparatus","response":"already","request":"machine","apparatusID":3464630983,"element":"motor"} <-- communication replay
+*/
+Action (motor,machine){
+  if(!ActionArgs.isString(0)) return INVALID; 
+  if(strMotorStatus == ActionArgs.asString(0)) return ALREADY;
+
+  if(ActionArgs.asString(0) == "goAhead") goAheadFunction();
+  if(ActionArgs.asString(0) == "stopRightNow") stopRightNow();
+  
+  return EXECUTED;  
+
 ```
 
 ---
@@ -116,6 +152,33 @@ TacitKnowledge(myApparatus, blinkSkill, "context", "instructions");
 
 ---
 
+### Trieb (Embodied Drives)
+
+NECK adopts the notion of **Trieb** (drive) to characterize **pre-deliberative bodily tendencies** that arise from the agent’s concrete engagement with the world.
+
+A *trieb* is neither a goal, nor a desire, nor an intention. It does not belong to the space of reasons, but to the space of **corporeal causation**. It expresses how the body, through its ongoing activity, establishes gradients of relevance, urgency, and constraint that precede symbolic deliberation.
+
+From an embodied cognition perspective, *trieb* captures the idea that the body is not a passive executor of decisions, but an active source of modulation for cognition. In this sense, bodily activity does not merely follow intentions; it **conditions what can meaningfully become an intention**.
+
+In NECK, actions and perceptions may emit *trieb* signals associated with an intensity value, representing the strength with which a bodily state asserts itself:
+
+```cpp
+motor.trieb("overheat_warning", 0.85);
+
+/* 
+{"trieb":"overheat_warning","element":"motor","drang":0.85,"apparatus":"myApparatus"} <-- communication replay
+
+!overheat_warning. <-- agent level
+*/
+
+```
+
+These signals are exposed to the agent’s mind as embodied drives, allowing external cognitive agents to take corporeal dynamics into account without embedding motivational or deliberative mechanisms inside the body itself.
+
+Conceptually, trieb occupies an intermediate level between perception and desire: it is neither a mere sensory datum nor a symbolic commitment, but a pre-intentional force through which the body participates in shaping the agent’s cognitive horizon.
+
+---
+
 ## Communication Protocol
 
 NECK uses a minimal and transparent protocol: **JSON-SLP (JSON-seq over SLIP over Serial)**.
@@ -124,13 +187,6 @@ Example command:
 ```json
 {"msg":"blinkOperation","args":[true]}
 ```
-
----
-
-## Intended Use
-
-NECK is intended for embedded multi-agent systems, agent-based robotics, hybrid BDI architectures, and research on embodied cognition, particularly when accountability and inspectability are required.
-
 
 ---
 
