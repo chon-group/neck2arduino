@@ -1,0 +1,44 @@
+#######################################
+#   Syntax Coloring Map for HCSR04    #
+#######################################
+
+#######################################
+#       Datatypes (KEYWORD1)          # 
+#######################################
+
+NECK	KEYWORD1
+Action	KEYWORD1
+Perception	KEYWORD1
+TacitKnowledge	KEYWORD1
+Element	KEYWORD1
+Apparatus	KEYWORD1
+
+#######################################
+#  Methods and Functions (KEYWORD2)   #
+#######################################
+
+embody	KEYWORD2
+trieb	KEYWORD2
+add	KEYWORD2
+
+#######################################
+#         Constants (LITERAL1)        #
+#######################################
+
+EXECUTED	LITERAL1
+UNABLE	LITERAL1
+ALREADY	LITERAL1
+REJECTED	LITERAL1
+INVALID	LITERAL1
+UNKNOWN	LITERAL1
+
+PERCEPTED	LITERAL1
+UNAVAILABLE	LITERAL1
+UNCHANGED	LITERAL1    
+
+INTEROCEPTION	LITERAL1
+PROPRIOCEPTION	LITERAL1
+EXTEROCEPTION	LITERAL1
+
+ActionArgs	LITERAL1
+NECKArgs	LITERAL1
