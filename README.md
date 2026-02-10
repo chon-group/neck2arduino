@@ -92,8 +92,8 @@ Perceptions expose bodily states to the agent’s mind and are classified by sou
 /*  perceive()            <-- agent level 
   {"msg":"getPercepts"}    <-- communication 
 
-{"belief":"ledStatus","element":"led","type":"proprioception","response":"percepted","args":[1]} <-- communication reply
-{"belief":"motorStatus","element":"motor","type":"proprioception","response":"percepted","args":["running"]} <-- communication reply
+{"percept":"ledStatus","element":"led","type":"proprioception","response":"percepted","args":[1]} <-- communication reply
+{"percept":"motorStatus","element":"motor","type":"proprioception","response":"percepted","args":["running"]} <-- communication reply
 
 +motorStatus(running).  <-- agent level
 +ledStatus(1).          <-- agent level

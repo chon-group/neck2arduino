@@ -222,11 +222,11 @@ struct ActionEntry {
 
 struct PerceptionEntry {
   const char* elementName;
-  const char* beliefName;
+  const char* perceptName;
   PerceptionType type;
   PerceptionFn fn;
   PerceptionEntry* next;
-  PerceptionEntry() : elementName(nullptr), beliefName(nullptr), type(PROPRIOCEPTION), fn(nullptr), next(nullptr) {}
+  PerceptionEntry() : elementName(nullptr), perceptName(nullptr), type(PROPRIOCEPTION), fn(nullptr), next(nullptr) {}
 };
 
 /* =========================
@@ -263,10 +263,10 @@ public:
     _actions        = ae;
   }
 
-  void addPerception(const char* elementName, const char* beliefName, PerceptionType t, PerceptionFn fn) {
+  void addPerception(const char* elementName, const char* perceptName, PerceptionType t, PerceptionFn fn) {
     PerceptionEntry* pe = new PerceptionEntry();
     pe->elementName = elementName;
-    pe->beliefName  = beliefName;
+    pe->perceptName  = perceptName;
     pe->type        = t;
     pe->fn          = fn;
     pe->next        = _percepts;
@@ -339,7 +339,7 @@ public:
       PerceptReturn ret = p->fn();
 
       _JSONmsg.clear(); 
-      _JSONmsg["belief"]     = p->beliefName;
+      _JSONmsg["percept"]     = p->perceptName;
       _JSONmsg["element"] = p->elementName;
       _JSONmsg["type"]     = perceptionTypeToStr(p->type);
       _JSONmsg["response"]  = perceptionResponseToStr(ret.response);
@@ -678,17 +678,17 @@ using NECK::EXTEROCEPTION;
   static NECK::ActionResponse NECK_CONCAT(__neck_action_fn_, NECK_CONCAT(EL, NECK_CONCAT(_, ACTNAME)))(const NECK::NECKArgs& ActionArgs)
 
 /*
-  Perception(Element, BELIEF, TYPE) { ... }
+  Perception(Element, PERCEPT, TYPE) { ... }
 */
-#define Perception(EL, BELIEF, TYPE) \
-  static NECK::PerceptReturn NECK_CONCAT(__neck_percept_fn_, NECK_CONCAT(EL, NECK_CONCAT(_, BELIEF)))(); \
-  struct NECK_CONCAT(__neck_percept_reg_, NECK_CONCAT(EL, NECK_CONCAT(_, BELIEF))) { \
-    NECK_CONCAT(__neck_percept_reg_, NECK_CONCAT(EL, NECK_CONCAT(_, BELIEF)))() { \
-      if ((EL).apparatus) (EL).apparatus->addPerception(#EL, #BELIEF, NECK::TYPE, &NECK_CONCAT(__neck_percept_fn_, NECK_CONCAT(EL, NECK_CONCAT(_, BELIEF)))); \
+#define Perception(EL, PERCEPT, TYPE) \
+  static NECK::PerceptReturn NECK_CONCAT(__neck_percept_fn_, NECK_CONCAT(EL, NECK_CONCAT(_, PERCEPT)))(); \
+  struct NECK_CONCAT(__neck_percept_reg_, NECK_CONCAT(EL, NECK_CONCAT(_, PERCEPT))) { \
+    NECK_CONCAT(__neck_percept_reg_, NECK_CONCAT(EL, NECK_CONCAT(_, PERCEPT)))() { \
+      if ((EL).apparatus) (EL).apparatus->addPerception(#EL, #PERCEPT, NECK::TYPE, &NECK_CONCAT(__neck_percept_fn_, NECK_CONCAT(EL, NECK_CONCAT(_, PERCEPT)))); \
     } \
   }; \
-  static NECK_CONCAT(__neck_percept_reg_, NECK_CONCAT(EL, NECK_CONCAT(_, BELIEF))) NECK_CONCAT(__neck_percept_reg_instance_, NECK_CONCAT(EL, NECK_CONCAT(_, BELIEF))); \
-  static NECK::PerceptReturn NECK_CONCAT(__neck_percept_fn_, NECK_CONCAT(EL, NECK_CONCAT(_, BELIEF)))()
+  static NECK_CONCAT(__neck_percept_reg_, NECK_CONCAT(EL, NECK_CONCAT(_, PERCEPT))) NECK_CONCAT(__neck_percept_reg_instance_, NECK_CONCAT(EL, NECK_CONCAT(_, PERCEPT))); \
+  static NECK::PerceptReturn NECK_CONCAT(__neck_percept_fn_, NECK_CONCAT(EL, NECK_CONCAT(_, PERCEPT)))()
 
 /*
   TacitKnowledge(APP, NAME, "plan");
