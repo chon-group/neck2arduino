@@ -183,11 +183,13 @@ struct PerceptReturn {
   PerceptReturn(const NECKArgs& a) : status(PERCEPTED), hasArgs(true), args(a) {}
 
   // primitives => PERCEPTED + args[0]
-  PerceptReturn(bool x) : status(PERCEPTED), hasArgs(true) { args.add(x); }
+  explicit PerceptReturn(bool x) : status(PERCEPTED), hasArgs(true) { args.add(x); }
   PerceptReturn(int32_t x) : status(PERCEPTED), hasArgs(true) { args.add(x); }
   PerceptReturn(int x) : status(PERCEPTED), hasArgs(true) { args.add(x); } // fixes ambiguity
   PerceptReturn(float x) : status(PERCEPTED), hasArgs(true) { args.add(x); }
   PerceptReturn(const String& x) : status(PERCEPTED), hasArgs(true) { args.add(x); }
+  PerceptReturn(const char* x) : status(PERCEPTED), hasArgs(true) { args.add(x); }
+
 };
 
 /* =========================
