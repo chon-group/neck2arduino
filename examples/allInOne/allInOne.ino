@@ -1,8 +1,8 @@
-#include <NECK.hpp>   /*  https://github.com/chon-group/neckArduino */
+#include <NECK.hpp>   /*  https://github.com/chon-group/neck2arduino */
 Apparatus(myApparatus); 
+Element(myApparatus,led2);
+Element(myApparatus,led); 
 
-TacitKnowledge(myApparatus, nomequalquer1, "gasdfdsafsadfsadfsadfsdafdsafdsafasd");
-TacitKnowledge(myApparatus, segundoNome, "contextoXXXX", "qwerwqerewqrwqerwqerwerweqrwe");
 
 boolean blinkStatus = false;
 int ledPin = 13;
@@ -10,14 +10,14 @@ void setup() {pinMode(ledPin, OUTPUT); pinMode(12, OUTPUT);}
 
 void loop() {
   myApparatus.embody();
+
   if(blinkStatus){
     digitalWrite(ledPin,!digitalRead(ledPin));
     delay(250);
   }
 }  
 
-Element(myApparatus,led2);
-Element(myApparatus,led);     
+  
   
 Action (led2,blinkOperation){
   if(!ActionArgs.isBool(0)) return INVALID; 
@@ -58,6 +58,10 @@ Perception (led,outraCoisa, PROPRIOCEPTION){
   return out;
 }
 
+TacitKnowledge(myApparatus, nomequalquer1, "gasdfdsafsadfsadfsadfsdafdsafdsafasd");
+TacitKnowledge(myApparatus, segundoNome, "contextoXXXX", "qwerwqerewqrwqerwqerwerweqrwe");
+
+/* helpers */
 bool algumaFuncao(){return true;}
 bool funcaRetornaTrueouFalse(){return false;}
 bool testeQualquer(){return false;}
