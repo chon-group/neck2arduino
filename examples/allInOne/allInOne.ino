@@ -9,7 +9,7 @@ int ledPin = 13;
 void setup() {pinMode(ledPin, OUTPUT); pinMode(12, OUTPUT);}
 
 void loop() {
-  myApparatus.embody();
+  myApparatus.sense();
 
   if(blinkStatus){
     digitalWrite(ledPin,!digitalRead(ledPin));

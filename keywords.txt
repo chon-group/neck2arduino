@@ -17,9 +17,11 @@ Apparatus	KEYWORD1
 #  Methods and Functions (KEYWORD2)   #
 #######################################
 
-embody	KEYWORD2
+sense	KEYWORD2
 trieb	KEYWORD2
+getLastSense	KEYWORD2
 add	KEYWORD2
+
 
 #######################################
 #         Constants (LITERAL1)        #

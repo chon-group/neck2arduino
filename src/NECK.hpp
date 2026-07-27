@@ -41,7 +41,7 @@ extern "C" {
     Perception(led, ledID, PROPRIOCEPTION) { return UNAVAILABLE; }
 
   Minimal runtime:
-    - myApparatus.embody() reads incoming lines from Serial (or setIO Stream)
+    - myApparatus.sense() reads incoming lines from Serial (or setIO Stream)
     - If line contains "getPercepts" -> streams all registered perceptions as JSON
     - Else tries to parse JSON-ish line with "element" and "action" and optional "args":[...]
 */
@@ -275,7 +275,7 @@ public:
     _percepts       = pe;
   }
 
-  void embody() {
+  void sense() {
     if (!_begun) begin(115200);
 
     if (_jslp.incoming()) {
@@ -297,6 +297,7 @@ public:
                     JSONtoNECKArgs(_JSONmsg["args"]));
         }
       }
+      lastSense = millis();
     }
   }
 
@@ -502,6 +503,10 @@ public:
     
   }
 
+  unsigned long getLastSense() {
+    return lastSense;
+  }
+
 
 private:
   JSON_SLP _jslp;
@@ -512,6 +517,8 @@ private:
   ElementDef* _elements;
   ActionEntry* _actions;
   PerceptionEntry* _percepts;
+  
+  unsigned long lastSense = 0;
 
   char _line[200];
   uint8_t _lineLen;
