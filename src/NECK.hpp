@@ -183,7 +183,8 @@ struct PerceptReturn {
   PerceptReturn(const NECKArgs& a) : status(PERCEPTED), hasArgs(true), args(a) {}
 
   // primitives => PERCEPTED + args[0]
-  explicit PerceptReturn(bool x) : status(PERCEPTED), hasArgs(true) { args.add(x); }
+  //explicit PerceptReturn(bool x) : status(PERCEPTED), hasArgs(true) { args.add(x); }
+  PerceptReturn(bool x) : status(PERCEPTED), hasArgs(true) { args.add(x); }
   PerceptReturn(int32_t x) : status(PERCEPTED), hasArgs(true) { args.add(x); }
   PerceptReturn(int x) : status(PERCEPTED), hasArgs(true) { args.add(x); } // fixes ambiguity
   PerceptReturn(float x) : status(PERCEPTED), hasArgs(true) { args.add(x); }
@@ -354,7 +355,7 @@ public:
           switch (av.type) {
             case ARG_BOOL:   _JSONmsg["args"][i] = (av.v.b); break;
             case ARG_INT:    _JSONmsg["args"][i] = (av.v.i); break;
-            case ARG_FLOAT:  _JSONmsg["args"][i] = (av.v.f, 6); break;
+            case ARG_FLOAT:  _JSONmsg["args"][i] = (av.v.f); break;
             case ARG_STRING: _JSONmsg["args"][i] = (av.s); break;
           }
         }
