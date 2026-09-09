@@ -1,10 +1,22 @@
 #!/usr/bin/env python3
-# pip install pyserial
+
+# How to prepare the Python virtual environment:
+#   python3 -m venv .venv
+#   source .venv/bin/activate
+#   pip install pyserial
+#
+# How to execute
+#   python neckClient.py --port /dev/ttyUSB0
+#   python neckClient.py --port /dev/ttyUSB0 --baud 115200 --timeout 1.0
 
 import sys
 import time
 import argparse
 import serial
+import readline
+
+# TAB inserts a JSON message template and places the cursor inside "msg"
+readline.parse_and_bind(r'"\C-i": "{\"msg\":\"\"}\C-b\C-b"')
 
 # Framing OFICIAL
 SLIP_END   = 0xC0  # RFC 1055 (Fim/Início do enquadramento)
@@ -85,9 +97,21 @@ def read_available_lines(ser: serial.Serial) -> None:
 
 
 def interactive(ser: serial.Serial) -> None:
-    print('Digite um ou mais JSONs separados por "|" para enviar na mesma transmissão.')
-    print('Exemplo: {"msg":"A"} | {"msg":"B"}')
-    print('Comandos: /quit  /raw <texto>  /ping')
+    print("NECK interactive client:")
+    print()    
+    print('Shortcuts:')
+    print('  TAB       -> inserts {"msg":""} and places the cursor inside "msg"')
+    print('  UP/DOWN   -> browse command history')
+    print()
+    print("Available requests: getPercepts | getActions | getKnowHow | ACTION-NAME")
+    print('Example:  {"msg":"HERE"}')
+    print()
+    print('Multiple requests can be separated by "|".')
+    print('Example:')
+    print('  {"msg":"getPercepts"} | {"msg":"getActions"}')
+    print()
+    #print("Commands: /quit  /raw <text>")
+    print("Exit: /quit ")
     print()
 
     while True:
@@ -127,18 +151,18 @@ def interactive(ser: serial.Serial) -> None:
 
 def main():
     ap = argparse.ArgumentParser(description="UART JSON-seq over SLIP Client")
-    ap.add_argument("--port", required=True, help="Ex: /dev/ttyUSB0 ou COM3")
+    ap.add_argument("--port", required=True, help="Ex: /dev/ttyUSB0 or COM3")
     ap.add_argument("--baud", type=int, default=115200, help="Baudrate")
-    ap.add_argument("--timeout", type=float, default=1.0, help="Timeout de leitura")
+    ap.add_argument("--timeout", type=float, default=1.0, help="Timeout")
     args = ap.parse_args()
 
     try:
         ser = open_serial(args.port, args.baud, args.timeout)
     except Exception as e:
-        print(f"Erro abrindo porta {args.port}: {e}", file=sys.stderr)
+        print(f"Error open port {args.port}: {e}", file=sys.stderr)
         sys.exit(1)
 
-    print(f"Conectado em {ser.port} @ {ser.baudrate} baud.")
+    print(f"Conected at {ser.port} @ {ser.baudrate} baud.")
     try:
         time.sleep(1.5) # Aguarda reset da placa
         ser.reset_input_buffer()
