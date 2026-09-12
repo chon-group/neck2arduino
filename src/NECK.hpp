@@ -1,3 +1,165 @@
+/*
+ * ============================================================================
+ * NECK.hpp
+ * ============================================================================
+ *
+ * Main entry point of the NECK library.
+ *
+ * NECK (ageNt Embodied Cognition development Kit) provides the computational
+ * mechanisms required to explicitly represent and operate the physical body
+ * of a BDI agent.
+ *
+ * NECK was conceived as part of the MAOP+b model, which extends the
+ * Multi-Agent Oriented Programming (MAOP) paradigm by explicitly
+ * representing the bodies of embodied agents. Instead of treating sensors,
+ * actuators and embedded devices merely as external resources of the
+ * environment, NECK allows them to constitute the agent's physical body.
+ *
+ * In this model, the agent's cognitive and physical processes are distinct
+ * but integrated as parts of the same embodied entity.
+ * The agent performs cognitive processes such as deliberation,
+ * while its body performs physical processes responsible for sensing and
+ * behaving in the world. NECK provides the interface through which these
+ * two dimensions become integrated.
+ *
+ * A body is composed of one or more Apparatus, each representing a physical
+ * subsystem that may contain one or more Elements. Elements constitute the
+ * points through which the body senses and acts upon both its internal state
+ * and the external world.
+ *
+ * This organization allows the physical constitution of an agent to be
+ * explicitly represented and potentially changed during execution by
+ * attaching or detaching Apparatus, while preserving the distinction between
+ * the agent's cognitive identity and its current physical embodiment.
+ *
+ * At the embedded-device level, this library provides the mechanisms used to
+ * describe and execute an Apparatus and its Elements, establishing the
+ * connection between physical processes and the BDI agent:
+ *
+ *                    ┌────────── Body ──────────┐
+ *                    │                          │
+ *                    │          Mind            │
+ *                    │         (BDI)            │
+ *                    │           │              │
+ *                    │  Percept ↑│↓ Act         │
+ *                    │           │              │
+ *                    │      ┌─ Apparatus ─┐     │
+ *                    │      │             │     │
+ *                    │      │   Element   │     │
+ *                    │      └──────┬──────┘     │
+ *                    │             │            │
+ *                    └─────────────┼────────────┘
+ *                       Sensing ↑  │  ↓ Behaving
+ *                                  │
+ *                           Physical World
+ *
+ * Percept
+ *   Exposes information produced by the body to the BDI agent, allowing
+ *   bodily and environmental state to participate in its deliberative cycle.
+ *
+ * Act
+ *   Represents an intentional action requested by the BDI agent and
+ *   performed through its body.
+ *
+ * Sensing
+ *   Represents a body-side sensing process performed continuously by an
+ *   Element. It allows the body to acquire and maintain information about
+ *   itself or the physical world independently of an explicit percept
+ *   request from the agent.
+ *
+ * Behaving
+ *   Represents a body-side behavioral process performed continuously by an
+ *   Element. It allows physical behavior initiated by the agent, or arising
+ *   from the body's own operation, to persist and evolve independently of
+ *   new deliberative commands.
+ *
+ * The body execution cycle is implemented by Apparatus::embody():
+ *
+ *     sensing();
+ *     inhabitance();
+ *     behaving();
+ *
+ * This cycle deliberately places inhabitance between sensing and behaving:
+ * the body first senses its current physical condition, then interacts with
+ * the agent that inhabits it, and finally continues its bodily behavior in
+ * the physical world.
+ *
+ * The inhabitance() process therefore represents the operational connection
+ * between body and mind: percepts may flow from body to agent, while acts may
+ * flow from agent to body.
+ *
+ * --------------------------------------------------------------------------
+ * Internal organization
+ * --------------------------------------------------------------------------
+ *
+ * NECKCore.hpp
+ *   Fundamental types and contracts shared by the library, including
+ *   response types, argument representation, percept return values and
+ *   tacit-knowledge metadata.
+ *
+ * NECKBody.hpp
+ *   Structural representation of the embedded body, including Elements,
+ *   Trieb, sensing/behaving functions and the internal registries used to
+ *   associate bodily processes with Elements.
+ *
+ * NECKApparatus.hpp
+ *   Runtime implementation of an Apparatus. It coordinates the body execution
+ *   cycle, communication with the BDI agent, action dispatch, percept
+ *   transmission, tacit knowledge and Trieb messages.
+ *
+ * NECKDSL.hpp
+ *   User-facing DSL for describing the physical constitution and bodily
+ *   processes of an Apparatus. It provides Apparatus, Element, Percept, Act,
+ *   Sensing, Behaving and TacitKnowledge declarations for embedded
+ *   applications.
+ *
+ * Dependency order:
+ *
+ *     NECKCore.hpp
+ *          ↓
+ *     NECKBody.hpp
+ *          ↓
+ *     NECKApparatus.hpp
+ *          ↓
+ *     NECKDSL.hpp
+ *
+ * Users normally need to include only this file:
+ *
+ *     #include <NECK.hpp>
+ *
+ *
+ * ============================================================================
+ * Authorship and Reference
+ * ============================================================================
+ *
+ * Author: Nilson Lazarin
+ * Research Group: Cognitive Hardware on Networks (CHON) - https://chon.group
+ *
+ * Revision: September 2026
+ *
+ * The conceptual foundations underlying NECK and the introduction of the
+ * body as an explicit dimension of BDI-agent-based embedded systems are
+ * presented in:
+ *
+ * Nilson Lazarin, Carlos Pantoja, and Jose Viterbo. 2026.
+ * "My Body, My Perceptions: A Shift from Computationalism to Embodied
+ * Cognition in BDI-agent-based Embedded Systems."
+ * In Proceedings of the 25th International Conference on Autonomous Agents
+ * and Multiagent Systems (AAMAS 2026), Paphos, Cyprus, May 25–29, 2026.
+ * IFAAMAS, 10 pages.
+ *
+ * https://doi.org/10.65109/QIVX3835
+ *
+ * ============================================================================
+ */
+
+
+/*
+ * ============================================================================
+ * Platform and standard dependencies
+ * ============================================================================
+ */
+
 #pragma once
 #include <Arduino.h>
 #include <stdint.h>
@@ -5,733 +167,96 @@
 #include <stdlib.h>
 #include "JSON_SLP.hpp"
 
-// Linker-provided bounds for section "neck_tacit" (global symbols).
-// Declared as bytes to avoid namespace/type mangling issues on AVR.
-extern "C" {
-  extern const uint8_t __start_neck_tacit[];
-  extern const uint8_t __stop_neck_tacit[];
-}
-
-// PROGMEM helpers (AVR-friendly). On non-AVR boards, PROGMEM becomes a no-op.
-#if defined(ARDUINO_ARCH_AVR)
-  #include <avr/pgmspace.h>
-#else
-  #ifndef PROGMEM
-    #define PROGMEM
-  #endif
-  #ifndef pgm_read_byte
-    #define pgm_read_byte(addr) (*(const uint8_t*)(addr))
-  #endif
-  #ifndef pgm_read_ptr
-    #define pgm_read_ptr(addr) (*(const void* const*)(addr))
-  #endif
-#endif
 
 /*
-  NECK.hpp — Single-header scaffold for Arduino (AVR-friendly)
+ * ============================================================================
+ * Tacit Knowledge linker section
+ * ============================================================================
+ *
+ * TacitKnowledge declarations are stored in the "neck_tacit" linker section.
+ *
+ * The linker provides the symbols below marking the beginning and the end of
+ * that section. Apparatus uses these boundaries to enumerate the registered
+ * tacit knowledge at runtime.
+ *
+ * They are declared as raw bytes and outside namespace NECK to match the
+ * global symbols generated by the linker and to avoid C++ name mangling.
+ * ============================================================================
+ */
 
-  DSL supported (global scope):
-    Apparatus(myApparatus);
+extern "C" {
+    extern const uint8_t __start_neck_tacit[];
+    extern const uint8_t __stop_neck_tacit[];
+}
 
-    Element(myApparatus, led);
 
-    Action(led, toggleLED) { ... return EXECUTED; }
+/*
+ * ============================================================================
+ * Program-memory compatibility
+ * ============================================================================
+ *
+ * On AVR architectures, constant data such as TacitKnowledge strings may be
+ * stored in program memory (Flash) using PROGMEM.
+ *
+ * Other Arduino architectures may not provide the AVR-specific PROGMEM and
+ * pgm_read_* facilities. The definitions below therefore provide compatible
+ * fallbacks so the remaining NECK code can use the same interface regardless
+ * of the target architecture.
+ * ============================================================================
+ */
 
-    Perception(led, ledStatus, PROPRIOCEPTION) { return true; }
-    Perception(led, ledID, PROPRIOCEPTION) { return UNAVAILABLE; }
+#if defined(ARDUINO_ARCH_AVR)
 
-  Minimal runtime:
-    - myApparatus.sense() reads incoming lines from Serial (or setIO Stream)
-    - If line contains "getPercepts" -> streams all registered perceptions as JSON
-    - Else tries to parse JSON-ish line with "element" and "action" and optional "args":[...]
-*/
+    #include <avr/pgmspace.h>
+
+#else
+
+    #ifndef PROGMEM
+        #define PROGMEM
+    #endif
+
+    #ifndef pgm_read_byte
+        #define pgm_read_byte(addr) (*(const uint8_t*)(addr))
+    #endif
+
+    #ifndef pgm_read_ptr
+        #define pgm_read_ptr(addr) (*(const void* const*)(addr))
+    #endif
+
+#endif
+
+
+/*
+ * ============================================================================
+ * NECK implementation
+ * ============================================================================
+ *
+ * These headers are intentionally included inside namespace NECK.
+ *
+ * Their order reflects their dependencies:
+ *
+ *   Core      -> fundamental contracts
+ *   Body      -> body structures built upon Core
+ *   Apparatus -> runtime built upon Core and Body
+ *
+ * The DSL is included afterwards because it exposes NECK types and macros at
+ * the global scope for use directly in Arduino sketches.
+ * ============================================================================
+ */
 
 namespace NECK {
 
-static const char BUILD_SIGNATURE[] = __DATE__ " " __TIME__;
-
-/* =========================
-   Enums (contracts)
-   ========================= */
-
-enum ElementType : uint8_t { SENSOR, EFFECTOR };
-
-enum ActionResponse : uint8_t {
-  EXECUTED,
-  UNABLE,
-  ALREADY,
-  REJECTED,
-  INVALID,
-  UNKNOWN
-};
-
-enum PerceptionResponse : uint8_t {
-  PERCEPTED,
-  UNAVAILABLE,
-  UNCHANGED
-};
-
-enum PerceptionType : uint8_t {
-  INTEROCEPTION,
-  PROPRIOCEPTION,
-  EXTEROCEPTION
-};
-
-
-struct TacitEntry {
-  const char* apparatus; // PROGMEM string (PSTR)
-  const char* skill; // PROGMEM string (PSTR)
-  const char* context;   // PROGMEM string (PSTR) or nullptr => true
-  const char* plan;      // PROGMEM string (PSTR)
-};
-
-// Linker-provided bounds for section "neck_tacit" are declared globally above.
-
-// Ensure section exists even if user not to declare any TacitKnowledge.
-__attribute__((used, section("neck_tacit")))
-static const TacitEntry __neck_tacit_sentinel = { nullptr, nullptr, nullptr, nullptr };
-
-/* =========================
-   Args (dynamic)
-   ========================= */
-
-enum ArgType : uint8_t { ARG_BOOL, ARG_INT, ARG_FLOAT, ARG_STRING };
-
-struct ArgValue {
-  ArgType type;
-  union { bool b; int32_t i; float f; } v;
-  String s;
-  ArgValue() : type(ARG_INT) { v.i = 0; }
-};
-
-class NECKArgs {
-public:
-  static const uint8_t MAX = 8;
-
-  NECKArgs() : _n(0) {}
-
-  void clear() { _n = 0; }
-  uint8_t size() const { return _n; }
-
-  bool add(bool x) {
-    if (_n >= MAX) return false;
-    _a[_n].type = ARG_BOOL; _a[_n].v.b = x; _a[_n].s = ""; _n++;
-    return true;
-  }
-  bool add(int32_t x) {
-    if (_n >= MAX) return false;
-    _a[_n].type = ARG_INT; _a[_n].v.i = x; _a[_n].s = ""; _n++;
-    return true;
-  }
-  bool add(int x) { return add((int32_t)x); } // convenience
-  bool add(float x) {
-    if (_n >= MAX) return false;
-    _a[_n].type = ARG_FLOAT; _a[_n].v.f = x; _a[_n].s = ""; _n++;
-    return true;
-  }
-
-  // Ergonomics: allow string literals without accidental conversion to bool.
-  bool add(const char* x) {
-    if (_n >= MAX) return false;
-    _a[_n].type = ARG_STRING;
-    _a[_n].s = (x == nullptr) ? String("") : String(x);
-    _n++;
-    return true;
-  }
-
-  // Accept double literals (on AVR Uno, double == float, but overload avoids ambiguity).
-  bool add(double x) { return add((float)x); }
-
-  bool add(const String& x) {
-    if (_n >= MAX) return false;
-    _a[_n].type = ARG_STRING; _a[_n].s = x; _n++;
-    return true;
-  }
-
-  bool isBool(uint8_t idx) const   { return idx < _n && _a[idx].type == ARG_BOOL; }
-  bool isInt(uint8_t idx) const    { return idx < _n && _a[idx].type == ARG_INT; }
-  bool isFloat(uint8_t idx) const  { return idx < _n && _a[idx].type == ARG_FLOAT; }
-  bool isString(uint8_t idx) const { return idx < _n && _a[idx].type == ARG_STRING; }
-
-  bool   asBool(uint8_t idx) const   { return _a[idx].v.b; }
-  int32_t asInt(uint8_t idx) const   { return _a[idx].v.i; }
-  float  asFloat(uint8_t idx) const  { return _a[idx].v.f; }
-  String asString(uint8_t idx) const { return _a[idx].s; }
-
-  const ArgValue& at(uint8_t idx) const { return _a[idx]; }
-
-private:
-  ArgValue _a[MAX];
-  uint8_t _n;
-};
-
-/* =========================
-   Perception return envelope
-   ========================= */
-
-struct PerceptReturn {
-  PerceptionResponse status;
-  bool hasArgs;
-  NECKArgs args;
-
-  PerceptReturn() : status(PERCEPTED), hasArgs(false) {}
-
-  // status only
-  PerceptReturn(PerceptionResponse r) : status(r), hasArgs(false) {}
-
-  // args => PERCEPTED
-  PerceptReturn(const NECKArgs& a) : status(PERCEPTED), hasArgs(true), args(a) {}
-
-  // primitives => PERCEPTED + args[0]
-  //explicit PerceptReturn(bool x) : status(PERCEPTED), hasArgs(true) { args.add(x); }
-  PerceptReturn(bool x) : status(PERCEPTED), hasArgs(true) { args.add(x); }
-  PerceptReturn(int32_t x) : status(PERCEPTED), hasArgs(true) { args.add(x); }
-  PerceptReturn(int x) : status(PERCEPTED), hasArgs(true) { args.add(x); } // fixes ambiguity
-  PerceptReturn(float x) : status(PERCEPTED), hasArgs(true) { args.add(x); }
-  PerceptReturn(const String& x) : status(PERCEPTED), hasArgs(true) { args.add(x); }
-  PerceptReturn(const char* x) : status(PERCEPTED), hasArgs(true) { args.add(x); }
-
-};
-
-/* =========================
-   Registry nodes
-   ========================= */
-
-class Apparatus;
-
-struct ElementDef {
-  // --- Trieb (drive) ---
-  // Sends a JSON message immediately:
-  //   {"trieb":"name","args":[...],"apparatus":"...","element":"...","drang":0.7}
-  void trieb(const char* triebName, double drang);
-  void trieb(const char* triebName, const NECKArgs& args, double drang);
-
-  const char* name;
-  Apparatus* apparatus;
-  ElementDef* next;
-  ElementDef(const char* n, Apparatus* a);
-};
-
-typedef ActionResponse (*ActionFn)(const NECKArgs& ActionArgs);
-typedef PerceptReturn (*PerceptionFn)();
-
-struct ActionEntry {
-  const char* elementName;
-  const char* actionName;
-  ActionFn fn;
-  ActionEntry* next;
-  ActionEntry() : elementName(nullptr), actionName(nullptr), fn(nullptr), next(nullptr) {}
-};
-
-struct PerceptionEntry {
-  const char* elementName;
-  const char* perceptName;
-  PerceptionType type;
-  PerceptionFn fn;
-  PerceptionEntry* next;
-  PerceptionEntry() : elementName(nullptr), perceptName(nullptr), type(PROPRIOCEPTION), fn(nullptr), next(nullptr) {}
-};
-
-/* =========================
-   Apparatus
-   ========================= */
-
-class Apparatus {
-public:
-  explicit Apparatus(const char* name)
-    : _name(name), _begun(false), _elements(nullptr), _actions(nullptr), _percepts(nullptr), _jslp(Serial), 
-      _lineLen(0) {
-        _apparatusID = fnv1a(BUILD_SIGNATURE, _apparatusID);
-        _apparatusID = fnv1a(_name, _apparatusID);
-      }
-
-  const char* name() const { return _name; }
- 
-  void begin(unsigned long baud) {
-    Serial.begin(baud);
-    _begun = true;
-  }
-
-  void attachElement(ElementDef* e) {
-    e->next = _elements;
-    _elements = e;
-  }
-
-  void addAction(const char* elementName, const char* actionName, ActionFn fn) {
-    ActionEntry* ae = new ActionEntry();
-    ae->elementName = elementName;
-    ae->actionName  = actionName;
-    ae->fn          = fn;
-    ae->next        = _actions;
-    _actions        = ae;
-  }
-
-  void addPerception(const char* elementName, const char* perceptName, PerceptionType t, PerceptionFn fn) {
-    PerceptionEntry* pe = new PerceptionEntry();
-    pe->elementName = elementName;
-    pe->perceptName  = perceptName;
-    pe->type        = t;
-    pe->fn          = fn;
-    pe->next        = _percepts;
-    _percepts       = pe;
-  }
-
-  void sense() {
-    if (!_begun) begin(115200);
-
-    if (_jslp.incoming()) {
-      if (_jslp.updateDoc(_JSONmsg)) {
-      // valida "msg" obrigatoria e string nao vazia
-        const char* msg = _JSONmsg["msg"];
-        if (!msg || msg[0] == '\0') return;
-        
-        if (strstr(msg, "getPercepts")      != nullptr){streamPercepts();  return;}
-        else if (strstr(msg, "getKnowHow")  != nullptr){streamKnowHow();   return;}
-        else if (strstr(msg, "getActions")  != nullptr){
-          String element = _JSONmsg["element"].as<String>();
-          if (element.length() == 0 || element == "null") streamActions(nullptr);
-          else streamActions(element.c_str());
-          return;
-        }else{
-          streamAction(_JSONmsg["msg"].as<String>(),
-                    _JSONmsg["element"].as<String>(),
-                    JSONtoNECKArgs(_JSONmsg["args"]));
-        }
-      }
-      lastSense = millis();
-    }
-  }
-
-
-  void streamAction(String action, String element, NECKArgs args){    
-    _jslp.startTransmission();
-
-    if (!action.length() == 0){
-      if (element.length() > 0 && element != "null") {
-        // UNICAST
-        ActionResponse r = dispatchActionUnicast(element.c_str(), action.c_str(), args);
-        sendActionResultJSON(element.c_str(), action.c_str(), r);
-      } else {
-        // BROADCAST
-        digitalWrite(12,HIGH);
-        bool any = dispatchActionBroadcast(action.c_str(), args);
-        if (!any){
-          _JSONmsg.clear(); 
-          _JSONmsg["apparatus"]   = _name;
-          _JSONmsg["bodyResponse"]    = actionResponseToStr(ActionResponse::UNKNOWN);
-          _JSONmsg["request"]     = action;
-          _JSONmsg["apparatusID"] = _apparatusID;
-          _jslp.transmit(_JSONmsg);
-        }
-      }
-    }
-     _jslp.endTransmission();
-  }
-
-
-  void streamPercepts() {
-    _jslp.startTransmission();
-
-    _JSONmsg.clear(); 
-    _JSONmsg["apparatus"]   = _name;
-    _JSONmsg["bodyResponse"]    = actionResponseToStr(ActionResponse::EXECUTED);
-    _JSONmsg["request"]     = "getPercepts";
-    _JSONmsg["apparatusID"] = _apparatusID;
-    _jslp.transmit(_JSONmsg);
-
-    for (PerceptionEntry* p = _percepts; p != nullptr; p = p->next) {
-      PerceptReturn ret = p->fn();
-
-      _JSONmsg.clear(); 
-      _JSONmsg["percept"]     = p->perceptName;
-      _JSONmsg["element"] = p->elementName;
-      _JSONmsg["type"]     = perceptionTypeToStr(p->type);
-      _JSONmsg["status"]  = perceptionResponseToStr(ret.status);
-
-      if(ret.hasArgs){
-        for (uint8_t i = 0; i < ret.args.size(); i++) {
-          
-          const ArgValue& av = ret.args.at(i);
-          switch (av.type) {
-            case ARG_BOOL:   _JSONmsg["args"][i] = (av.v.b); break;
-            case ARG_INT:    _JSONmsg["args"][i] = (av.v.i); break;
-            case ARG_FLOAT:  _JSONmsg["args"][i] = (av.v.f); break;
-            case ARG_STRING: _JSONmsg["args"][i] = (av.s); break;
-          }
-        }
-      }
-      _jslp.transmit(_JSONmsg);
-    }
-    _jslp.endTransmission();
-  }
-
-  void streamActions(const char* onlyElement) {
-    _jslp.startTransmission();
-
-    _JSONmsg.clear(); 
-    _JSONmsg["apparatus"]   = _name;
-    _JSONmsg["bodyResponse"]    = actionResponseToStr(ActionResponse::EXECUTED);
-    _JSONmsg["request"]     = "getActions";
-    _JSONmsg["apparatusID"] = _apparatusID;
-    _jslp.transmit(_JSONmsg);
-
-    for (ActionEntry* a = _actions; a != nullptr; a = a->next) {
-      if (onlyElement && strcmp(a->elementName, onlyElement) != 0) continue;
-      _JSONmsg.clear(); 
-      _JSONmsg["action"]     = a->actionName;
-      _JSONmsg["element"] = a->elementName;
-      _jslp.transmit(_JSONmsg);
-    }
-    _jslp.endTransmission();
-  }
-
-  void streamKnowHow() {
-    _jslp.startTransmission();
-
-    _JSONmsg.clear(); 
-    _JSONmsg["apparatus"]   = _name;
-    _JSONmsg["bodyResponse"]    = actionResponseToStr(ActionResponse::EXECUTED);
-    _JSONmsg["request"]     = "getKnowHow";
-    _JSONmsg["apparatusID"] = _apparatusID;
-    _jslp.transmit(_JSONmsg);
-
-    // Iterate over TacitKnowledge entries stored in Flash (section "neck_tacit")
-    const uintptr_t start = (uintptr_t)::__start_neck_tacit;
-    const uintptr_t stop  = (uintptr_t)::__stop_neck_tacit;
-    if (stop <= start) { _jslp.endTransmission(); return; }
-
-    const uint16_t total = (uint16_t)((stop - start) / sizeof(TacitEntry));
-    const TacitEntry* base = (const TacitEntry*)start;
-
-    for (uint16_t i = 0; i < total; i++) {
-      const TacitEntry* e = &base[i];
-
-      // Read pointers from PROGMEM/flash-stored struct
-      const char* appP = (const char*)pgm_read_ptr(&e->apparatus);
-      const char* knP  = (const char*)pgm_read_ptr(&e->skill);
-      const char* ctxP = (const char*)pgm_read_ptr(&e->context);
-      const char* plP  = (const char*)pgm_read_ptr(&e->plan);
-
-      if (!appP || !knP || !plP) continue; // skip sentinel/empty
-
-      // Filter: only entries for this apparatus
-      if (strcmp_P_ram(appP, _name) != 0) continue;
-
-      _JSONmsg.clear();
-      
-      char tempBuffer[128];
-      copyPROGMEM(knP, tempBuffer, sizeof(tempBuffer));
-      _JSONmsg["skill"] = tempBuffer;
-
-      if (ctxP) copyPROGMEM(ctxP, tempBuffer, sizeof(tempBuffer));
-      _JSONmsg["context"]   = ctxP ? tempBuffer : nullptr;
-
-      copyPROGMEM(plP, tempBuffer, sizeof(tempBuffer));
-      _JSONmsg["plan"]      = tempBuffer;
-
-      _jslp.transmit(_JSONmsg);
-    }
-    _jslp.endTransmission();
-  }
-
-
-  ActionResponse dispatchAction(const char* elementName, const char* actionName, const NECKArgs& args) {
-    for (ActionEntry* a = _actions; a != nullptr; a = a->next) {
-      if (strcmp(a->elementName, elementName) == 0 && strcmp(a->actionName, actionName) == 0) {
-        if (a->fn) return a->fn(args);
-        return UNABLE;
-      }
-    }
-    return UNKNOWN;
-  }
-
-
-  ActionResponse dispatchActionUnicast(const char* elementName, const char* actionName, const NECKArgs& args) {
-    for (ActionEntry* a = _actions; a != nullptr; a = a->next) {
-      if (strcmp(a->elementName, elementName) == 0 && strcmp(a->actionName, actionName) == 0) {
-        return a->fn ? a->fn(args) : UNABLE;
-      }
-    }
-    return UNKNOWN;
-  }
-
-  bool dispatchActionBroadcast(const char* actionName, const NECKArgs& args) {
-    bool any = false;
-    for (ActionEntry* a = _actions; a != nullptr; a = a->next) {
-      if (strcmp(a->actionName, actionName) == 0) {
-        any = true;
-        ActionResponse r = a->fn ? a->fn(args) : UNABLE;
-        sendActionResultJSON(a->elementName, actionName, r);
-      }
-    }
-    return any;
-  }
-
-
-
-  /* ===== JSON Transmission ===== */
-
-  void sendTriebJSON(const char* elementName, const char* triebName, const NECKArgs* argsOrNull, double drang) {
-    _JSONmsg.clear();
-    _JSONmsg["trieb"]   = triebName;
-    _JSONmsg["element"] = elementName;  
-    _JSONmsg["drang"]   = drang;
-
-    if (argsOrNull && argsOrNull->size() > 0) {
-      for (uint8_t i = 0; i < argsOrNull->size(); i++) {
-        const ArgValue& av = argsOrNull->at(i);
-        switch (av.type) {
-          case ARG_BOOL: _JSONmsg["args"][i] = av.v.b; break;
-          case ARG_INT:    _JSONmsg["args"][i] = av.v.i; break;
-          case ARG_FLOAT:  _JSONmsg["args"][i] = av.v.f; break;
-          case ARG_STRING: _JSONmsg["args"][i] = av.s; break;
-        }
-      }
-    
-    }
-    _jslp.transmit(_JSONmsg);
-
-  }
-
-  void sendActionResultJSON(const char* elementName, const char* actionName, ActionResponse r) {
-    _JSONmsg.clear(); 
-    _JSONmsg["apparatus"]   = _name;
-    _JSONmsg["bodyResponse"]    = actionResponseToStr(r);
-    _JSONmsg["request"]     = actionName;
-    _JSONmsg["apparatusID"] = _apparatusID;
-    _JSONmsg["element"]     = elementName;
-    _jslp.transmit(_JSONmsg);
-    
-  }
-
-  unsigned long getLastSense() {
-    return lastSense;
-  }
-
-
-private:
-  JSON_SLP _jslp;
-  JsonDocument _JSONmsg;
-  const char* _name;
-  bool _begun;
-
-  ElementDef* _elements;
-  ActionEntry* _actions;
-  PerceptionEntry* _percepts;
-  
-  unsigned long lastSense = 0;
-
-  char _line[200];
-  uint8_t _lineLen;
-  uint32_t _apparatusID = 2166136261UL;
-
-  static uint32_t fnv1a(const char* s, uint32_t hash) {
-    while (*s) {
-      hash ^= (uint8_t)*s++;
-      hash *= 16777619UL;
-    }
-    return hash;
-  }
-
-  static const __FlashStringHelper* actionResponseToStr(ActionResponse r) {
-    switch (r) {
-      case EXECUTED: return F("executed");
-      case UNABLE:   return F("unable");
-      case ALREADY:  return F("already");
-      case REJECTED: return F("rejected");
-      case INVALID:  return F("invalid");
-      case UNKNOWN:  return F("unknown");
-      default:       return F("unknown");
-    }
-  }
-
-  static const __FlashStringHelper* perceptionResponseToStr(PerceptionResponse r) {
-    switch (r) {
-      case PERCEPTED:   return F("percepted");
-      case UNAVAILABLE: return F("unavailable");
-      case UNCHANGED:   return F("unchanged");
-      default:          return F("percepted");
-    }
-  }
-
-  static const __FlashStringHelper* perceptionTypeToStr(PerceptionType t) {
-    switch (t) {
-      case INTEROCEPTION:  return F("interoception");
-      case PROPRIOCEPTION: return F("proprioception");
-      case EXTEROCEPTION:  return F("exteroception");
-      default:             return F("proprioception");
-    }
-  }
-
-  // Compare a PROGMEM string (pgmStr) with a RAM string (ramStr).
-  static int strcmp_P_ram(const char* pgmStr, const char* ramStr) {
-    if (!pgmStr && !ramStr) return 0;
-    if (!pgmStr) return -1;
-    if (!ramStr) return 1;
-    while (true) {
-      char a = (char)pgm_read_byte(pgmStr++);
-      char b = *ramStr++;
-      if (a != b) return (int)((uint8_t)a) - (int)((uint8_t)b);
-      if (a == '\0') return 0;
-    }
-  }
-
-  static void copyPROGMEM(const char* p, char* out, size_t outSize) {
-    if (!p || outSize == 0) return;
-    size_t n = strnlen_P(p, outSize - 1);
-    memcpy_P(out, p, n);
-    out[n] = '\0';
-  }
-
-  static NECKArgs JSONtoNECKArgs(JsonVariantConst jargs) {
-
-    NECKArgs out;
-
-    if (jargs.isNull()) return out;
-    if (!jargs.is<JsonArrayConst>()) return out;
-
-    for (JsonVariantConst v : jargs.as<JsonArrayConst>()) {
-      if (v.is<bool>())              out.add(v.as<bool>());
-      else if (v.is<int>())          out.add((int32_t)v.as<int>());
-      else if (v.is<long>())         out.add((int32_t)v.as<long>());
-      else if (v.is<float>())        out.add((float)v.as<float>());
-      else if (v.is<double>())       out.add((float)v.as<double>());
-      else if (v.is<const char*>())  out.add(v.as<const char*>());
-      else {
-        String tmp;
-        serializeJson(v, tmp);       // fallback: vira string JSON
-        out.add(tmp);
-      }
-    }
-    return out;
-  }
-
-};
-
-/* ElementDef ctor: auto-attach to apparatus */
-inline ElementDef::ElementDef(const char* n, Apparatus* a)
-  : name(n), apparatus(a), next(nullptr) {
-  if (apparatus) apparatus->attachElement(this);
-}
-
-// --- Trieb (drive) ---
-inline void ElementDef::trieb(const char* triebName, double drang) {
-  if (!apparatus || !triebName) return;
-  apparatus->sendTriebJSON(name, triebName, nullptr, drang);
-}
-
-inline void ElementDef::trieb(const char* triebName, const NECKArgs& args, double drang) {
-  if (!apparatus || !triebName) return;
-  apparatus->sendTriebJSON(name, triebName, &args, drang);
-}
-
-} // namespace NECK
-
-/* =========================
-   Bring DSL names to global
-   ========================= */
-
-#ifndef NECK_NO_GLOBAL_USING
-using NECK::NECKArgs;
-using NECK::PerceptReturn;
-
-using NECK::ActionResponse;
-using NECK::PerceptionResponse;
-using NECK::PerceptionType;
-
-using NECK::EXECUTED;
-using NECK::UNABLE;
-using NECK::ALREADY;
-using NECK::REJECTED;
-using NECK::INVALID;
-using NECK::UNKNOWN;
-
-using NECK::PERCEPTED;
-using NECK::UNAVAILABLE;
-using NECK::UNCHANGED;
-
-using NECK::INTEROCEPTION;
-using NECK::PROPRIOCEPTION;
-using NECK::EXTEROCEPTION;
-#endif
-
-/* =========================
-   DSL Macros
-   ========================= */
-
-//#define Apparatus(NAME) NECK::Apparatus NAME(#NAME)
-#define Apparatus(NAME)                                        \
-  static bool __neck_only_one_Apparatus_per_Microcontroller;    \
-  NECK::Apparatus NAME(#NAME)
+    #include "NECKCore.hpp"
+    #include "NECKBody.hpp"
+    #include "NECKApparatus.hpp"
+
+} 
 
 /*
-  Element(APPARATUS, ElementName);
-*/
-#define Element(APP, EL) NECK::ElementDef EL(#EL, &APP)
+ * ============================================================================
+ * User-facing Domain-Specific Language
+ * ============================================================================
+ *
+ */
 
-/* Unique name helpers */
-#define NECK_CONCAT_INNER(a,b) a##b
-#define NECK_CONCAT(a,b) NECK_CONCAT_INNER(a,b)
-
-/*
-  Action(Element, ACTNAME) { ... }
-*/
-#define Action(EL, ACTNAME) \
-  static NECK::ActionResponse NECK_CONCAT(__neck_action_fn_, NECK_CONCAT(EL, NECK_CONCAT(_, ACTNAME)))(const NECK::NECKArgs& ActionArgs); \
-  struct NECK_CONCAT(__neck_action_reg_, NECK_CONCAT(EL, NECK_CONCAT(_, ACTNAME))) { \
-    NECK_CONCAT(__neck_action_reg_, NECK_CONCAT(EL, NECK_CONCAT(_, ACTNAME)))() { \
-      if ((EL).apparatus) (EL).apparatus->addAction(#EL, #ACTNAME, &NECK_CONCAT(__neck_action_fn_, NECK_CONCAT(EL, NECK_CONCAT(_, ACTNAME)))); \
-    } \
-  }; \
-  static NECK_CONCAT(__neck_action_reg_, NECK_CONCAT(EL, NECK_CONCAT(_, ACTNAME))) NECK_CONCAT(__neck_action_reg_instance_, NECK_CONCAT(EL, NECK_CONCAT(_, ACTNAME))); \
-  static NECK::ActionResponse NECK_CONCAT(__neck_action_fn_, NECK_CONCAT(EL, NECK_CONCAT(_, ACTNAME)))(const NECK::NECKArgs& ActionArgs)
-
-/*
-  Perception(Element, PERCEPT, TYPE) { ... }
-*/
-#define Perception(EL, PERCEPT, TYPE) \
-  static NECK::PerceptReturn NECK_CONCAT(__neck_percept_fn_, NECK_CONCAT(EL, NECK_CONCAT(_, PERCEPT)))(); \
-  struct NECK_CONCAT(__neck_percept_reg_, NECK_CONCAT(EL, NECK_CONCAT(_, PERCEPT))) { \
-    NECK_CONCAT(__neck_percept_reg_, NECK_CONCAT(EL, NECK_CONCAT(_, PERCEPT)))() { \
-      if ((EL).apparatus) (EL).apparatus->addPerception(#EL, #PERCEPT, NECK::TYPE, &NECK_CONCAT(__neck_percept_fn_, NECK_CONCAT(EL, NECK_CONCAT(_, PERCEPT)))); \
-    } \
-  }; \
-  static NECK_CONCAT(__neck_percept_reg_, NECK_CONCAT(EL, NECK_CONCAT(_, PERCEPT))) NECK_CONCAT(__neck_percept_reg_instance_, NECK_CONCAT(EL, NECK_CONCAT(_, PERCEPT))); \
-  static NECK::PerceptReturn NECK_CONCAT(__neck_percept_fn_, NECK_CONCAT(EL, NECK_CONCAT(_, PERCEPT)))()
-
-/*
-  TacitKnowledge(APP, NAME, "plan");
-  TacitKnowledge(APP, NAME, "context", "plan");
-*/
-
-#define NECK_TK3(APP, NAME, PLAN) \
-  enum { NECK_CONCAT(__neck_tk_require_app_, __LINE__) = (int)sizeof(APP) }; \
-  static const char NECK_CONCAT(__neck_tk_app_, __LINE__)[] PROGMEM = #APP; \
-  static const char NECK_CONCAT(__neck_tk_name_, __LINE__)[] PROGMEM = #NAME; \
-  static const char NECK_CONCAT(__neck_tk_plan_, __LINE__)[] PROGMEM = PLAN; \
-  __attribute__((used, section("neck_tacit"))) \
-  static const NECK::TacitEntry NECK_CONCAT(__neck_tk_entry_, __LINE__) = { \
-    NECK_CONCAT(__neck_tk_app_, __LINE__), \
-    NECK_CONCAT(__neck_tk_name_, __LINE__), \
-    nullptr, \
-    NECK_CONCAT(__neck_tk_plan_, __LINE__) \
-  }
-
-#define NECK_TK4(APP, NAME, CTX, PLAN) \
-  enum { NECK_CONCAT(__neck_tk_require_app_, __LINE__) = (int)sizeof(APP) }; \
-  static const char NECK_CONCAT(__neck_tk_app_, __LINE__)[] PROGMEM = #APP; \
-  static const char NECK_CONCAT(__neck_tk_name_, __LINE__)[] PROGMEM = #NAME; \
-  static const char NECK_CONCAT(__neck_tk_ctx_, __LINE__)[] PROGMEM = CTX; \
-  static const char NECK_CONCAT(__neck_tk_plan_, __LINE__)[] PROGMEM = PLAN; \
-  __attribute__((used, section("neck_tacit"))) \
-  static const NECK::TacitEntry NECK_CONCAT(__neck_tk_entry_, __LINE__) = { \
-    NECK_CONCAT(__neck_tk_app_, __LINE__), \
-    NECK_CONCAT(__neck_tk_name_, __LINE__), \
-    NECK_CONCAT(__neck_tk_ctx_, __LINE__), \
-    NECK_CONCAT(__neck_tk_plan_, __LINE__) \
-  }
-
-// Macro overloading by argument count
-#define NECK_GET_5TH_ARG(_1,_2,_3,_4,_5,...) _5
-#define TacitKnowledge(...) NECK_GET_5TH_ARG(__VA_ARGS__, NECK_TK4, NECK_TK3, _NA, _NA)(__VA_ARGS__)
-
+#include "NECKDSL.hpp"

@@ -7,17 +7,19 @@
 #######################################
 
 NECK	KEYWORD1
-Action	KEYWORD1
-Perception	KEYWORD1
+Act	KEYWORD1
+Percept	KEYWORD1
 TacitKnowledge	KEYWORD1
 Element	KEYWORD1
+Sensing	KEYWORD1
+Behaving	KEYWORD1
 Apparatus	KEYWORD1
 
 #######################################
 #  Methods and Functions (KEYWORD2)   #
 #######################################
 
-sense	KEYWORD2
+embody	KEYWORD2
 trieb	KEYWORD2
 getLastSense	KEYWORD2
 add	KEYWORD2

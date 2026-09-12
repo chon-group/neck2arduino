@@ -96,6 +96,51 @@ def read_available_lines(ser: serial.Serial) -> None:
             print("<< " + line.decode("utf-8", errors="replace"))
 
 
+def non_interactive(ser: serial.Serial, request: str) -> None:
+    print("Non interactive Mode")
+    time.sleep(1.5)
+
+    messages = [msg.strip() for msg in request.split('|') if msg.strip()]
+
+    if not messages:
+        print("No request provided.", file=sys.stderr)
+        sys.exit(1)
+
+    msg_packet = frame_multiple_messages(messages)
+
+    if len(msg_packet) <= 64:
+        ser.write(msg_packet)
+        ser.flush()
+    else:
+        chunk_size = 16
+        chunk_delay = 0.01
+        for i in range(0, len(msg_packet), chunk_size):
+            ser.write(msg_packet[i:i + chunk_size])
+            ser.flush()
+            time.sleep(chunk_delay)
+            
+    response = bytearray()
+
+    deadline = time.time() + ser.timeout
+
+    while time.time() < deadline:
+        data = ser.read(1)
+
+        if not data:
+            continue
+
+        response.extend(data)
+
+        # Se chegou dado novo, renova o tempo de espera
+        # para permitir que outros frames também cheguem.
+        deadline = time.time() + ser.timeout
+
+    if not response:
+        print("No response received.", file=sys.stderr)
+        sys.exit(1)
+
+    print("<< " + bytes_debug_view(bytes(response)))
+
 def interactive(ser: serial.Serial) -> None:
     print("NECK interactive client:")
     print()    
@@ -154,6 +199,7 @@ def main():
     ap.add_argument("--port", required=True, help="Ex: /dev/ttyUSB0 or COM3")
     ap.add_argument("--baud", type=int, default=115200, help="Baudrate")
     ap.add_argument("--timeout", type=float, default=1.0, help="Timeout")
+    ap.add_argument("--request", help='Non-interactive request. Example: \'{"msg":"getActions"}\'')
     args = ap.parse_args()
 
     try:
@@ -164,11 +210,15 @@ def main():
 
     print(f"Conected at {ser.port} @ {ser.baudrate} baud.")
     try:
-        time.sleep(1.5) # Aguarda reset da placa
+        time.sleep(1.5)  # Aguarda reset da placa
         ser.reset_input_buffer()
-        interactive(ser)
+
+        if args.request:
+            non_interactive(ser, args.request)
+        else:
+            interactive(ser)
+
     finally:
         ser.close()
-
 if __name__ == "__main__":
     main()

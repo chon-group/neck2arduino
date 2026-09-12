@@ -1,195 +1,340 @@
 # NECK — ageNt Embodied Cognition development Kit
 
-**NECK** (ageNt Embodied Cognition development Kit) is a lightweight C++ framework for developing **embodied cognitive agent bodies** on resource-constrained embedded devices (e.g., Arduino-class microcontrollers).
+**NECK** (ageNt Embodied Cognition development Kit) is a lightweight C++ framework for describing and operating the **physical body of BDI agents** on resource-constrained embedded devices, such as Arduino-class microcontrollers.
 
-NECK was conceived as a concrete instantiation of an **embodied cognition perspective applied to BDI-agent-based embedded systems**, addressing theoretical and practical limitations of traditional computationalist approaches when agents are physically situated in the real world.
+NECK was conceived as part of the **MAOP+b** model and provides embedded mechanisms for explicitly representing bodily constitution and integrating bodily processes with the agent's BDI mind.
 
-This framework is grounded on the research presented in *My Body, My Perceptions: A Shift from Computationalism to Embodied Cognition in BDI-agent-based Embedded Systems* (AAMAS 2026).
+The conceptual foundations of NECK are presented in *My Body, My Perceptions: A Shift from Computationalism to Embodied Cognition in BDI-agent-based Embedded Systems* (AAMAS 2026).
 
 <img width="1304" height="699" alt="image" src="https://github.com/user-attachments/assets/e8c01b9e-8fb1-43dc-90be-f91e6145021e" />
-
 
 ---
 
 ## Motivation
 
-Most BDI-based agent frameworks adopt a **brain-centric and computationalist metaphor**, where cognition is treated as symbolic manipulation detached from the agent’s physical reality.
-When applied to embedded systems, this approach leads to architectural ambiguities, such as:
+Traditional BDI architectures primarily represent the cognitive processes of an agent, while its physical constitution is often treated as an external implementation concern.
 
-- Treating the agent’s body as an environmental artifact
-- Mixing bodily and environmental perceptions
-- Lacking explicit representation of internal, positional, and external bodily states
-- Weak support for accountability and traceability in physical action
+In physically embedded systems, however, sensors, actuators and other physical components constitute the body through which the agent perceives and acts in the world.
 
-Inspired by **Embodied Cognition**, NECK assumes that **the body is not an interface to the agent — the body is the agent itself**.
+Inspired by **Embodied Cognition**, NECK explicitly represents this physical constitution and the bodily processes that connect the agent's BDI mind with the physical world.
 
 ---
 
 ## Conceptual Foundations
 
-NECK operationalizes the notion of a **mechatropsychosocial entity**, integrating:
+NECK is grounded in the notion of a **mechatropsychosocial entity**, integrating:
 
-- Mechatronic aspects (sensors, actuators, hardware constraints)
-- Psychological aspects (perceptions and action capabilities exposed to the agent’s mind)
-- Social aspects (interaction with external agents and organizational structures)
+- **Mechatronic aspects** — the physical body, including sensors, actuators and hardware constraints;
+- **Psychological aspects** — the BDI mind and its cognitive processes;
+- **Social aspects** — interactions with other agents and organizational structures.
 
-The framework explicitly supports three sources of bodily perception derived from cognitive science:
+The framework supports three sources of bodily perception derived from cognitive science:
 
-- **Interoception** — internal bodily state
-- **Exteroception** — perception of external stimuli
-- **Proprioception** — perception of body position and movement
+- **Interoception** — perception of the body's internal state;
+- **Proprioception** — perception of the body's position and movement;
+- **Exteroception** — perception of stimuli originating outside the body.
 
-These concepts are aligned with the **MAOP+ᵇ** model proposed in the associated research, extending the Multi-Agent Oriented Programming paradigm with an explicit notion of body.
+These concepts are aligned with the **MAOP+b** model proposed in the associated research, which extends the Multi-Agent Oriented Programming paradigm by explicitly representing the bodies of embodied agents.
+
+---
+
+## Body Model
+
+A body is composed of one or more **Apparatus**, each representing a physical subsystem composed of **Elements**.
+
+At the embedded-device level, NECK implements an Apparatus and its Elements.
+
+Conceptually:
+
+```text
+                 ┌────── Embodied Agent ──────┐
+                 │                            │
+                 │           Mind             │
+                 │          (BDI)             │
+                 │            │               │
+                 │   Percept ↑│↓ Act          │
+                 │            │               │
+                 │      ┌──── Body ────┐      │
+                 │      │              │      │
+                 │      │  Apparatus   │      │
+                 │      │      │       │      │
+                 │      │   Element    │      │
+                 │      └──────┬───────┘      │
+                 └─────────────┼──────────────┘
+                    Sensing ↑  │  ↓ Behaving
+                               │
+                        Physical World
+```
+
+The Apparatus therefore operates at the intersection of two relationships:
+
+- **Mind ↔ Body** — through `Percept` and `Act`;
+- **Body ↔ Physical World** — through `Sensing` and `Behaving`.
 
 ---
 
 ## Architectural Principles
 
-NECK enforces the following design principles:
+NECK follows these principles:
 
-- One Apparatus per embedded device
-- Clear separation between body and mind
-- Explicit representation of perceptions, actions, and tacit (procedural) know-how
-- No hidden autonomy or implicit deliberation
-- Minimal and inspectable communication
-
-The framework is intentionally **non-deliberative**: decision-making, planning, and reasoning are externalized to cognitive agents (e.g., BDI agents implemented in Jason or JaCaMo).
+- one `Apparatus` per embedded device;
+- explicit representation of the physical constitution of the agent;
+- distinction between cognitive and bodily processes while integrating them as parts of the same embodied entity;
+- explicit representation of `Percept`, `Act`, `Sensing`, `Behaving`, `Trieb` and `TacitKnowledge`;
+- deliberation remains in the BDI mind;
+- bodily processes may continuously evolve independently of new deliberative commands.
 
 ---
 
-## Core Abstractions
+## Basic Structure
 
-### Apparatus
-
-An `Apparatus` represents the **entire embodied agent** on a single device.
-
-- Exactly one `Apparatus` is allowed per microcontroller (enforced at compile time)
-- Acts as the root container for the agent’s body
+A NECK application normally includes only:
 
 ```cpp
 #include <NECK.hpp>
-Apparatus(myApparatus);
 ```
+
+An Apparatus and its Elements can then be declared as follows:
+
+```cpp
+Apparatus(myApparatus) {
+    Element(led);
+    Element(motor);
+}
+```
+
+The current embedded NECK model allows exactly one `Apparatus` per microcontroller.
 
 ---
 
-### Elements
+## Percept
 
-`Elements` represent physical or logical parts of the body (e.g., sensors, actuators).
+A `Percept` represents information that an Element exposes to the BDI mind when requested.
 
-```cpp
-Element(myApparatus, led);
-Element(myApparatus, motor);
-```
-
----
-
-### Perceptions
-
-Perceptions expose bodily states to the agent’s mind and are classified by source.
+A Percept returns a perceived value, a set of values, or a `PerceptionResponse`. Percepts are classified according to their source as `INTEROCEPTION`, `PROPRIOCEPTION` or `EXTEROCEPTION`.
 
 ```cpp
-/*  perceive()            <-- agent level 
-  {"msg":"getPercepts"}    <-- communication 
-
-{"percept":"ledStatus","element":"led","type":"proprioception","status":"percepted","args":[1]} <-- communication reply
-{"percept":"motorStatus","element":"motor","type":"proprioception","status":"percepted","args":["running"]} <-- communication reply
-
-+motorStatus(running).  <-- agent level
-+ledStatus(1).          <-- agent level
-*/
-
-Perception(led, ledStatus, PROPRIOCEPTION) {
-  return digitalRead(13);
+Percept(led, ledStatus, PROPRIOCEPTION) {
+    return digitalRead(13);
 }
 
-
-Perception(motor, motorStatus, PROPRIOCEPTION) {
-  return strMotorStatus;
-} 
-
-
-
-```
-
----
-
-### Actions
-
-Actions define what the body can do and expose **capabilities**, not intentions.
-
-```cpp
-/* act(toggleLED); <-- agent level
-    {"msg":"toggleLED"}    <-- communication
-    {"apparatus":"myApparatus","bodyResponse":"executed","request":"toggleLED","apparatusID":3464630983,"element":"led"} <-- communication replay
-*/
-Action(led, toggleLED) {
-  digitalWrite(13, !digitalRead(13));
-  return EXECUTED;
+Percept(motor, motorStatus, PROPRIOCEPTION) {
+    return strMotorStatus;
 }
+```
 
-/* act(machine(goAhead));        <-- agent level
-    {"msg":"machine","args":["goAhead"]} <-- communication
-    {"apparatus":"myApparatus","bodyResponse":"already","request":"machine","apparatusID":3464630983,"element":"motor"} <-- communication replay
-*/
-Action (motor,machine){
-  if(!ActionArgs.isString(0)) return INVALID; 
-  if(strMotorStatus == ActionArgs.asString(0)) return ALREADY;
+Percept is distinct from `Sensing`: Sensing continuously acquires or updates bodily state, whereas a Percept exposes information to the BDI mind when requested.
 
-  if(ActionArgs.asString(0) == "goAhead") goAheadFunction();
-  if(ActionArgs.asString(0) == "stopRightNow") stopRightNow();
-  
-  return EXECUTED;
+---
+
+## Act
+
+An `Act` represents an intentional bodily operation requested by the BDI mind and performed through an Element.
+
+An Act returns an `ActionResponse` indicating the outcome of the requested operation, such as `EXECUTED`, `UNABLE`, `ALREADY`, `REJECTED` or `INVALID`.
+
+```cpp
+Act(led, toggleLED) {
+    digitalWrite(13, !digitalRead(13));
+    return EXECUTED;
 }
+```
 
+Arguments supplied by the BDI mind are available through `ActionArgs`:
+
+```cpp
+Act(motor, machine) {
+
+    if (!ActionArgs.isString(0))
+        return INVALID;
+
+    if (strMotorStatus == ActionArgs.asString(0))
+        return ALREADY;
+
+    if (ActionArgs.asString(0) == "goAhead")
+        goAheadFunction();
+
+    if (ActionArgs.asString(0) == "stopRightNow")
+        stopRightNow();
+
+    return EXECUTED;
+}
+```
+
+Act is distinct from `Behaving`: an Act may establish a bodily state or initiate a behavior whose continuation occurs through Behaving.
+
+---
+
+## Sensing
+
+`Sensing` represents a continuous body-side sensing process associated with an Element.
+
+It executes during every embodiment cycle, before `inhabitance()`, and may acquire or update bodily state independently of whether the BDI mind requests a Percept.
+
+```cpp
+Sensing(sensor) {
+    temperature = analogRead(A0);
+}
 ```
 
 ---
 
-### Tacit Knowledge (Know-How)
+## Behaving
 
-Tacit knowledge represents **procedural, embodied know-how**, not symbolic plans.
+`Behaving` represents a continuous body-side behavioral process associated with an Element.
+
+It executes during every embodiment cycle, after `inhabitance()`, allowing physical behavior initiated by an Act, or arising from the body's own operation, to persist and evolve independently of new deliberative commands.
 
 ```cpp
-TacitKnowledge(myApparatus, blinkSkill, "context", "instructions");
+Behaving(motor) {
+    if (running) {
+        // continue bodily behavior
+    }
+}
 ```
 
 ---
 
-### Trieb (Embodied Drives)
+## Embodiment Cycle
 
-NECK adopts the notion of **Trieb** (drive) to characterize **pre-deliberative bodily tendencies** that arise from the agent’s concrete engagement with the world.
-
-A *trieb* is neither a goal, nor a desire, nor an intention. It does not belong to the space of reasons, but to the space of **corporeal causation**. It expresses how the body, through its ongoing activity, establishes gradients of relevance, urgency, and constraint that precede symbolic deliberation.
-
-From an embodied cognition perspective, *trieb* captures the idea that the body is not a passive executor of decisions, but an active source of modulation for cognition. In this sense, bodily activity does not merely follow intentions; it **conditions what can meaningfully become an intention**.
-
-In NECK, actions and perceptions may emit *trieb* signals associated with an intensity value, representing the strength with which a bodily state asserts itself:
+The runtime of an Apparatus is coordinated by `embody()`:
 
 ```cpp
-motor.trieb("overheat_warning", 0.85);
-
-/* 
-{"trieb":"overheat_warning","element":"motor","drang":0.85,"apparatus":"myApparatus"} <-- communication replay
-
-!overheat_warning. <-- agent level
-*/
-
+void loop() {
+    myApparatus.embody();
+}
 ```
 
-These signals are exposed to the agent’s mind as embodied drives, allowing external cognitive agents to take corporeal dynamics into account without embedding motivational or deliberative mechanisms inside the body itself.
+Each embodiment cycle executes:
 
-Conceptually, trieb occupies an intermediate level between perception and desire: it is neither a mere sensory datum nor a symbolic commitment, but a pre-intentional force through which the body participates in shaping the agent’s cognitive horizon.
+```text
+sensing();
+inhabitance();
+behaving();
+```
+
+The body first updates its physical state through Sensing. `inhabitance()` then maintains the operational interaction between body and BDI mind. Finally, Behaving allows bodily processes to continue in the physical world.
+
+---
+
+## Trieb (Embodied Drives)
+
+`Trieb` represents a body-originated drive associated with an Element.
+
+A Trieb expresses a bodily demand toward the BDI mind and carries a `Drang` value representing its intensity. It is not itself a BDI desire, goal or intention; it allows bodily conditions to participate in the cognitive process without placing deliberation inside the body.
+
+Within `Act` and `Percept`, the callable object `trieb` is automatically available:
+
+```cpp
+Percept(sensor, temperature, INTEROCEPTION) {
+
+    if (temperature > 70)
+        trieb("coolDown", 0.85);
+
+    return temperature;
+}
+```
+
+A Trieb generated by an Element is conveyed through its Apparatus to the BDI mind.
+
+---
+
+## Tacit Knowledge (Know-How)
+
+`TacitKnowledge` represents practical know-how associated with bodily capabilities.
+
+It allows knowledge associated with the physical constitution of an Apparatus to be exposed to the BDI mind through `getKnowHow`.
+
+```cpp
+TacitKnowledge(
+    startMovement,
+    "+!start <- .myBody.act(move)."
+);
+```
+
+An Apparatus can therefore provide not only physical capabilities, but also the know-how required for the BDI mind to use those capabilities.
 
 ---
 
 ## Communication Protocol
 
-NECK uses a minimal and transparent protocol: **JSON-SLP (JSON-seq over SLIP over Serial)**.
+NECK uses **JSON-SLP**, based on JSON-seq over SLIP over Serial, for the operational interaction between an Apparatus and the BDI mind.
 
-Example command:
+Typical requests include:
+
 ```json
-{"msg":"blinkOperation","args":[true]}
+{"msg":"getPercepts"}
+```
+
+```json
+{"msg":"getActions"}
+```
+
+```json
+{"msg":"getKnowHow"}
+```
+
+An Act may be requested directly by its name:
+
+```json
+{"msg":"toggleLED"}
+```
+
+or with arguments:
+
+```json
+{"msg":"machine","args":["goAhead"]}
+```
+
+---
+
+## Minimal Example
+
+```cpp
+#include <NECK.hpp>   /* https://github.com/chon-group/neck2arduino */
+
+#define LED_PIN 13
+
+/*Apparatus Description*/
+Apparatus(arduinoBoard) {
+    Element(led);
+}
+
+bool blinking = false;
+bool ledStatus = false;
+unsigned long previousBlink = 0;
+void setup() {pinMode(LED_PIN, OUTPUT);}
+void loop() {arduinoBoard.embody();}
+
+/* Apparatus configuration*/
+Percept(led, ledStatus, PROPRIOCEPTION) {
+  if(digitalRead(LED_PIN)) return true;
+  return false;
+}
+
+Act(led, blinkOn) {
+  if (blinking) return ALREADY;
+
+  blinking = true;
+  return EXECUTED;
+}
+
+Act(led, blinkOff) {
+  if (!blinking) return ALREADY;
+
+  blinking = false;
+  digitalWrite(LED_PIN, LOW);
+
+  return EXECUTED;
+}
+
+Behaving(led) {
+  if (blinking && millis() - previousBlink >= 250) {
+      previousBlink = millis();
+      ledStatus = !ledStatus;
+      digitalWrite(LED_PIN, ledStatus);
+  }
+}
 ```
 
 ---
@@ -200,10 +345,10 @@ Example command:
 
 NECK is licensed under a [Creative Commons Attribution 4.0 International License](http://creativecommons.org/licenses/by/4.0/). The licensor cannot revoke these freedoms as long as you follow the license terms:
 
-* __Attribution__ — You must give __appropriate credit__ like below:
+* **Attribution** — You must give appropriate credit as follows:
 
-Nilson Lazarin, Carlos Pantoja, and Jose Viterbo. 2026.
-*My Body, My Perceptions: A Shift from Computationalism to Embodied Cognition in BDI-agent-based Embedded Systems.*
-In Proc. of the 25th International Conference on Autonomous Agents and Multiagent Systems (AAMAS 2026),
-Paphos, Cyprus, May 25–29, 2026. IFAAMAS, 10 pages.
+Nilson Lazarin, Carlos Pantoja, and Jose Viterbo. 2026.  
+*My Body, My Perceptions: A Shift from Computationalism to Embodied Cognition in BDI-agent-based Embedded Systems.*  
+In Proc. of the 25th International Conference on Autonomous Agents and Multiagent Systems (AAMAS 2026),  
+Paphos, Cyprus, May 25–29, 2026. IFAAMAS, 10 pages.  
 https://doi.org/10.65109/QIVX3835
