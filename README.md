@@ -6,7 +6,7 @@ NECK was conceived as part of the **MAOP+b** model and provides embedded mechani
 
 The conceptual foundations of NECK are presented in *My Body, My Perceptions: A Shift from Computationalism to Embodied Cognition in BDI-agent-based Embedded Systems* (AAMAS 2026).
 
-<img width="1304" height="699" alt="image" src="https://github.com/user-attachments/assets/e8c01b9e-8fb1-43dc-90be-f91e6145021e" />
+<img width="3375" height="2775" alt="image" src="https://github.com/user-attachments/assets/6b0d8825-ca97-42b3-8ef8-2c680b9929dc" />
 
 ---
 
