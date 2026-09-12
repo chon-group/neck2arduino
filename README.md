@@ -347,8 +347,4 @@ NECK is licensed under a [Creative Commons Attribution 4.0 International License
 
 * **Attribution** — You must give appropriate credit as follows:
 
-Nilson Lazarin, Carlos Pantoja, and Jose Viterbo. 2026.  
-*My Body, My Perceptions: A Shift from Computationalism to Embodied Cognition in BDI-agent-based Embedded Systems.*  
-In Proc. of the 25th International Conference on Autonomous Agents and Multiagent Systems (AAMAS 2026),  
-Paphos, Cyprus, May 25–29, 2026. IFAAMAS, 10 pages.  
-https://doi.org/10.65109/QIVX3835
+Nilson Lazarin, Carlos Pantoja, and Jose Viterbo. 2026. *My Body, My Perceptions: A Shift from Computationalism to Embodied Cognition in BDI-agent-based Embedded Systems.* In Proc. of the 25th International Conference on Autonomous Agents and Multiagent Systems (AAMAS 2026), Paphos, Cyprus, May 25–29, 2026. IFAAMAS, 10 pages. https://doi.org/10.65109/QIVX3835
