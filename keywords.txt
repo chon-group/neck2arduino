@@ -21,7 +21,7 @@ Apparatus	KEYWORD1
 
 embody	KEYWORD2
 trieb	KEYWORD2
-getLastSense	KEYWORD2
+getLastPresence	KEYWORD2
 add	KEYWORD2
 
 
