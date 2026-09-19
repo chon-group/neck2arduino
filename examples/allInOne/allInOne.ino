@@ -1,25 +1,20 @@
 #include <NECK.hpp>   /* https://github.com/chon-group/neck2arduino */
 
+#define LED_PIN 13
+uint32_t sensingCycles  = 0;
+uint32_t behavingCycles = 0;
+bool actuatorRunning = false;
+uint32_t movementSteps = 0;
+
+
 Apparatus(validationBody) {
   Element(sensor);
   Element(actuator);
 }
 
-/* --------------------------------------------------------------------------
-   Test state
-   -------------------------------------------------------------------------- */
-
-uint32_t sensingCycles  = 0;
-uint32_t behavingCycles = 0;
-
-bool actuatorRunning = false;
-uint32_t movementSteps = 0;
-
-/* --------------------------------------------------------------------------
-   Arduino lifecycle
-   -------------------------------------------------------------------------- */
-void setup() {}
-void loop() {validationBody.embody();}
+Preparation{
+  pinMode(LED_PIN, OUTPUT);
+}
 
 /* --------------------------------------------------------------------------
    Sensing / Behaving

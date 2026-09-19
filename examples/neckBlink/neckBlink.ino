@@ -1,22 +1,25 @@
 #include <NECK.hpp>   /* https://github.com/chon-group/neck2arduino */
 
 #define LED_PIN 13
+bool blinking = true;
+bool ledStatus = false;
+unsigned long previousBlink = 0;
 
-/*Apparatus Description*/
 Apparatus(arduinoBoard) {
     Element(led);
 }
 
-bool blinking = false;
-bool ledStatus = false;
-unsigned long previousBlink = 0;
-void setup() {pinMode(LED_PIN, OUTPUT);}
-void loop() {arduinoBoard.embody();}
+Preparation{
+  pinMode(LED_PIN, OUTPUT);
+}
 
-/* Apparatus configuration*/
+
+Sensing(led){
+  ledStatus = digitalRead(LED_PIN);
+}
+
 Percept(led, ledStatus, PROPRIOCEPTION) {
-  if(digitalRead(LED_PIN)) return true;
-  return false;
+  return ledStatus;
 }
 
 Act(led, blinkOn) {

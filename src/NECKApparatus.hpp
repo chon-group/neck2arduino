@@ -336,11 +336,19 @@ public:
    */
   void inhabitance() {
 
-    if (!_begun)
-      begin(115200);
+    if (!_begun) {
+        begin(115200);
 
-    if (!_jslp.incoming())
-      return;
+        while (!_jslp.incoming()) {
+            /* waiting for the first message */
+        }
+
+        _begun = true;
+    }
+    else {
+        if (!_jslp.incoming())
+            return;
+    }
 
     if (!_jslp.updateDoc(_JSONmsg))
       return;
@@ -350,25 +358,26 @@ public:
     if (!msg || msg[0] == '\0')
       return;
 
-    if (strstr(msg, "getPercepts") != nullptr) {
-      streamPercepts();
+    if (strstr(msg, "getPercepts") != nullptr) {streamPercepts();}
+    else if (strstr(msg, "getKnowHow") != nullptr) {streamKnowHow();}
+    else if (strstr(msg, "embody") != nullptr) {
+      _jslp.startTransmission();
+      _JSONmsg.clear();
+      _JSONmsg["apparatus"]    = _name;
+      _JSONmsg["bodyResponse"] = actionResponseToStr(ActionResponse::EXECUTED);
+      _JSONmsg["request"]      = "embody";
+      _JSONmsg["apparatusID"]  = _apparatusID;
+      _jslp.transmit(_JSONmsg);
+      _jslp.endTransmission();
     }
-
-    else if (strstr(msg, "getKnowHow") != nullptr) {
-      streamKnowHow();
-    }
-
     else if (strstr(msg, "getActions") != nullptr) {
-
       String element = _JSONmsg["element"].as<String>();
 
       if (element.length() == 0 || element == "null")
         streamActions(nullptr);
       else
         streamActions(element.c_str());
-    }
-
-    else {
+    }else {
       streamAction(
         _JSONmsg["msg"].as<String>(),
         _JSONmsg["element"].as<String>(),

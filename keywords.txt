@@ -7,6 +7,7 @@
 #######################################
 
 NECK	KEYWORD1
+Preparation	KEYWORD1
 Act	KEYWORD1
 Percept	KEYWORD1
 TacitKnowledge	KEYWORD1

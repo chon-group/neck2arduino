@@ -177,8 +177,9 @@ using NECK::EXTEROCEPTION;
  */
 
 #define Apparatus(NAME)                                        \
-  static bool __neck_only_one_Apparatus_per_Microcontroller;   \
+  bool __neck_only_one_Apparatus_per_Microcontroller;   \
   NECK::Apparatus NAME(#NAME);                                 \
+  void loop() { NAME.embody(); }                               \
   namespace __neck_body
 
 
@@ -576,3 +577,52 @@ using NECK::EXTEROCEPTION;
 #define TacitKnowledge(...) \
   NECK_GET_4TH_ARG(__VA_ARGS__, NECK_TK3, NECK_TK2, _NA)(__VA_ARGS__)
 
+
+/*
+ * Apparatus Preparation
+ *
+ * Defines an optional preparation routine executed once during the
+ * Arduino setup phase. It is intended for hardware initialization
+ * required by the apparatus, such as pin configuration, sensor
+ * initialization, and actuator attachment.
+ *
+ * The Preparation block is optional. When it is not declared,
+ * the hidden Arduino setup() performs no apparatus-specific
+ * preparation.
+ */
+
+/* Function pointer to the user-defined preparation routine. */
+typedef void (*__neck_preparation_fn)();
+
+/* No preparation routine is registered by default. */
+static __neck_preparation_fn __neck_preparation = nullptr;
+
+/*
+ * Registers the user-defined Preparation block.
+ *
+ * Example:
+ *
+ * Preparation {
+ *     pinMode(LED_PIN, OUTPUT);
+ * }
+ */
+#define Preparation                                      \
+    void __neck_user_preparation();                      \
+    static struct __neck_preparation_registrar {         \
+        __neck_preparation_registrar() {                 \
+            __neck_preparation = __neck_user_preparation;\
+        }                                                \
+    } __neck_preparation_instance;                       \
+    void __neck_user_preparation()
+
+/*
+ * Hidden Arduino setup().
+ *
+ * Executes the apparatus preparation routine once, when one
+ * has been declared by the user.
+ */
+void setup() {
+    if (__neck_preparation) {
+        __neck_preparation();
+    }
+}
