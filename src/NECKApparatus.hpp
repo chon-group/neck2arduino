@@ -143,10 +143,11 @@ public:
   /*
    * Initializes the communication channel used by the Apparatus.
    */
-  void begin(unsigned long baud) {
-    Serial.begin(baud);
-    _begun = true;
-  }
+  //void begin(unsigned long baud) {
+  //  Serial.begin(baud);
+  //  _begun = true;
+  //}
+  // moved to Preparation
 
 
   /*
@@ -262,114 +263,128 @@ public:
     }
   }
 
+/*
+ * ==========================================================================
+ * Embodiment
+ * ==========================================================================
+ */
 
-  /*
-   * ==========================================================================
-   * Embodiment cycle
-   * ==========================================================================
-   */
-
-
-  /*
-   * Executes one complete embodiment cycle.
-   *
-   * embody() is the main runtime operation of an Apparatus and should be
-   * invoked repeatedly by the embedded application.
-   *
-   * Each cycle is intentionally organized into three stages:
-   *
-   *     sensing();
-   *     inhabitance();
-   *     behaving();
-   *
-   * Sensing
-   *   Allows the body to continuously acquire and update information about
-   *   itself and the physical world.
-   *
-   * Inhabitance
-   *   Maintains the operational relationship between the body and the BDI
-   *   mind inhabiting it. Through this relation, Percepts can flow toward
-   *   the mind and Acts can flow toward the body.
-   *
-   * Behaving
-   *   Allows bodily processes to continue and evolve in the physical world,
-   *   including behavior previously initiated by the BDI mind.
-   *
-   * These stages are deliberately independent. In particular, the absence
-   * of an incoming request during inhabitance() must not prevent behaving()
-   * from executing in the same embodiment cycle.
-   */
-  void embody() {
-    sensing();
-    inhabitance();
-    behaving();
-  }
-
-
-  /*
-   * Maintains the operational relation between the body and the BDI mind
-   * inhabiting it.
-   *
-   * inhabitance() processes an incoming NECK request, when available, and
-   * mediates the corresponding interaction between mind and body.
-   *
-   * Supported requests include:
-   *
-   *   getPercepts
-   *     Exposes the Percepts currently provided by the body's Elements.
-   *
-   *   getActions
-   *     Exposes Acts currently available through the body's Elements.
-   *
-   *   getKnowHow
-   *     Exposes TacitKnowledge carried by the current body.
-   *
-   *   Act request
-   *     Requests execution of an Act by one or more Elements.
-   *
-   * When a valid request is processed, lastPresence is updated. Therefore,
-   * lastPresence represents the most recent evidence that a mind has
-   * interacted with, and consequently inhabited, this body.
-   *
-   * Returning from this method does not interrupt the embodiment cycle.
-   * Control returns to embody(), allowing Behaving to execute normally.
-   */
-  void inhabitance() {
-
-    if (!_begun) {
-        begin(115200);
-
-        while (!_jslp.incoming()) {
-            /* waiting for the first message */
-        }
-
-        _begun = true;
-    }
-    else {
-        if (!_jslp.incoming())
-            return;
+/*
+ * Establishes the embodiment of the Apparatus.
+ *
+ * embody() waits for the initial "embody" request from the agent-side
+ * infrastructure. When the request is received, the Apparatus acknowledges
+ * the embodiment and becomes available for continuous bodily operation.
+ *
+ * The embodiment is established only once. After that, bodyCycle() is
+ * executed continuously by the embedded runtime.
+ */
+void embody() {
+  if (!_begun) {
+    while (!_jslp.incoming()) {
+      /* waiting for the embodiment request */
     }
 
-    if (!_jslp.updateDoc(_JSONmsg))
-      return;
+    if (!_JSONmsg["msg"].isNull() &&
+        strcmp(_JSONmsg["msg"], "embody") == 0) {
 
-    const char* msg = _JSONmsg["msg"];
-
-    if (!msg || msg[0] == '\0')
-      return;
-
-    if (strstr(msg, "getPercepts") != nullptr) {streamPercepts();}
-    else if (strstr(msg, "getKnowHow") != nullptr) {streamKnowHow();}
-    else if (strstr(msg, "embody") != nullptr) {
-      _jslp.startTransmission();
       _JSONmsg.clear();
       _JSONmsg["apparatus"]    = _name;
       _JSONmsg["bodyResponse"] = actionResponseToStr(ActionResponse::EXECUTED);
       _JSONmsg["request"]      = "embody";
       _JSONmsg["apparatusID"]  = _apparatusID;
+
+      _jslp.startTransmission();
       _jslp.transmit(_JSONmsg);
       _jslp.endTransmission();
     }
+
+    _begun = true;
+  }
+
+  bodyCycle();
+}
+
+
+/*
+ * ==========================================================================
+ * Body cycle
+ * ==========================================================================
+ */
+
+/*
+ * Executes one complete body cycle.
+ *
+ * Once embodiment has been established, the Apparatus continuously
+ * operates through three stages:
+ *
+ *     sensing();
+ *     inhabitance();
+ *     behaving();
+ *
+ * Sensing
+ *   Allows the body to continuously acquire and update information about
+ *   itself and the physical world.
+ *
+ * Inhabitance
+ *   Maintains the operational relationship between the body and the BDI
+ *   mind inhabiting it. Through this relation, Percepts can flow toward
+ *   the mind and Acts can flow toward the body.
+ *
+ * Behaving
+ *   Allows bodily processes to continue and evolve in the physical world,
+ *   including behavior previously initiated by the BDI mind.
+ *
+ * These stages are deliberately independent. In particular, the absence
+ * of an incoming request during inhabitance() must not prevent behaving()
+ * from executing in the same body cycle.
+ */
+void bodyCycle() {
+  sensing();
+  inhabitance();
+  behaving();
+}
+
+/*
+ * Maintains the operational relation between the body and the BDI mind
+ * inhabiting it.
+ *
+ * inhabitance() processes an incoming NECK request, when available, and
+ * mediates the corresponding interaction between mind and body.
+ *
+ * Supported requests include:
+ *
+ *   getPercepts
+ *     Exposes the Percepts currently provided by the body's Elements.
+ *
+ *   getActions
+ *     Exposes Acts currently available through the body's Elements.
+ *
+ *   getKnowHow
+ *     Exposes TacitKnowledge carried by the current body.
+ *
+ *   Act request
+ *     Requests execution of an Act by one or more Elements.
+ *
+ * When a valid request is successfully processed, lastPresence is updated.
+ * Therefore, lastPresence represents the most recent evidence that a mind
+ * has interacted with, and consequently inhabited, this body.
+ *
+ * Returning from this method does not interrupt the body cycle.
+ * Control returns to bodyCycle(), allowing Behaving to execute normally.
+ */
+  void inhabitance() {
+
+    if (!_jslp.incoming()) return;
+
+    if (!_jslp.updateDoc(_JSONmsg)) return;
+
+    const char* msg = _JSONmsg["msg"];
+
+    if (!msg || msg[0] == '\0') return;
+
+    if (strstr(msg, "getPercepts") != nullptr) {streamPercepts();}
+    else if (strstr(msg, "getKnowHow") != nullptr) {streamKnowHow();}
     else if (strstr(msg, "getActions") != nullptr) {
       String element = _JSONmsg["element"].as<String>();
 

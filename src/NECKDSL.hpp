@@ -146,13 +146,13 @@ using NECK::EXTEROCEPTION;
 #define NECK_CONCAT_INNER(a,b) a##b
 #define NECK_CONCAT(a,b) NECK_CONCAT_INNER(a,b)
 
-
 /*
  * ============================================================================
  * Apparatus
  * ============================================================================
  *
- * Declares the Apparatus implemented by the current embedded device.
+ * Declares the Apparatus implemented by the current embedded device and
+ * defines its execution lifecycle.
  *
  * Example:
  *
@@ -163,6 +163,18 @@ using NECK::EXTEROCEPTION;
  *
  * The declaration creates a NECK::Apparatus instance and opens the internal
  * namespace in which the Elements belonging to that Apparatus are declared.
+ *
+ * The Arduino execution lifecycle is managed internally by NECK:
+ *
+ *   setup()
+ *     Executes the optional Preparation block, initializes serial
+ *     communication, and starts the embodiment process.
+ *
+ *   loop()
+ *     Continuously executes the body cycle through bodyCycle().
+ *
+ * Consequently, the embedded application does not need to explicitly
+ * declare or manage the Arduino setup() and loop() functions.
  *
  * The intentionally repeated internal symbol
  *
@@ -176,10 +188,15 @@ using NECK::EXTEROCEPTION;
  * ============================================================================
  */
 
-#define Apparatus(NAME)                                        \
+#define Apparatus(NAME)                                 \
   bool __neck_only_one_Apparatus_per_Microcontroller;   \
-  NECK::Apparatus NAME(#NAME);                                 \
-  void loop() { NAME.embody(); }                               \
+  NECK::Apparatus NAME(#NAME);                          \
+  void setup() {                                        \
+    if (__neck_preparation) {__neck_preparation();}     \
+    Serial.begin(115200);                               \
+    NAME.embody();                                      \
+  }                                                     \
+  void loop() { NAME.bodyCycle(); }                     \
   namespace __neck_body
 
 
@@ -614,15 +631,3 @@ static __neck_preparation_fn __neck_preparation = nullptr;
         }                                                \
     } __neck_preparation_instance;                       \
     void __neck_user_preparation()
-
-/*
- * Hidden Arduino setup().
- *
- * Executes the apparatus preparation routine once, when one
- * has been declared by the user.
- */
-void setup() {
-    if (__neck_preparation) {
-        __neck_preparation();
-    }
-}
