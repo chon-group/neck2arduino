@@ -63,7 +63,7 @@ Percept(sensor, mixedValues, INTEROCEPTION) {
   return values;
 }
 
-// PerceptionResponse variants
+// Response variants
 Percept(sensor, unavailableValue, EXTEROCEPTION) {
   return UNAVAILABLE;
 }

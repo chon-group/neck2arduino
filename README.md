@@ -111,7 +111,7 @@ The current embedded NECK model allows exactly one `Apparatus` per microcontroll
 
 A `Percept` represents information that an Element exposes to the BDI mind when requested.
 
-A Percept returns a perceived value, a set of values, or a `PerceptionResponse`. Percepts are classified according to their source as `INTEROCEPTION`, `PROPRIOCEPTION` or `EXTEROCEPTION`.
+A Percept returns a perceived value, a set of values, or a `Response`. Percepts are classified according to their source as `INTEROCEPTION`, `PROPRIOCEPTION` or `EXTEROCEPTION`.
 
 ```cpp
 Percept(led, ledStatus, PROPRIOCEPTION) {

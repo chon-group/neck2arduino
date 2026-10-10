@@ -102,7 +102,7 @@ enum ActionResponse : uint8_t {
  * UNCHANGED
  *   The percept exists, but its relevant value has not changed.
  */
-enum PerceptionResponse : uint8_t {
+enum Response : uint8_t {
   PERCEPTED,
   UNAVAILABLE,
   UNCHANGED
@@ -510,7 +510,7 @@ private:
  *
  * A Percept may return:
  *
- *   - only a PerceptionResponse;
+ *   - only a Response;
  *   - one typed value;
  *   - multiple values represented by NECKArgs; or
  *   - no explicit value, in which case PERCEPTED is assumed.
@@ -536,7 +536,7 @@ private:
  */
 struct PerceptReturn {
 
-  PerceptionResponse status;
+  Response status;
   bool hasArgs;
   NECKArgs args;
 
@@ -552,7 +552,7 @@ struct PerceptReturn {
   /*
    * Creates a result containing only a perception status.
    */
-  PerceptReturn(PerceptionResponse r)
+  PerceptReturn(Response r)
     : status(r),
       hasArgs(false) {}
 

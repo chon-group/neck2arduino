@@ -41,7 +41,7 @@
  * Percept
  *   Declares information that an Element can expose to the BDI mind when
  *   requested. A Percept returns a perceived value, a set of values, or a
- *   PerceptionResponse describing the result of the request.
+ *   Response describing the result of the request.
  *
  * Act
  *   Declares an intentional bodily operation requested by the BDI mind and
@@ -109,7 +109,7 @@ using NECK::NECKArgs;
 using NECK::PerceptReturn;
 
 using NECK::ActionResponse;
-using NECK::PerceptionResponse;
+using NECK::Response;
 using NECK::PerceptionType;
 
 using NECK::EXECUTED;
@@ -348,7 +348,7 @@ using NECK::EXTEROCEPTION;
  *
  *   - a primitive value supported by PerceptReturn;
  *   - NECKArgs containing multiple values;
- *   - a PerceptionResponse such as UNAVAILABLE or UNCHANGED.
+ *   - a Response such as UNAVAILABLE or UNCHANGED.
  *
  * Inside a Percept declaration, trieb is automatically available. This allows
  * a Percept evaluation to produce a body-originated drive when appropriate.

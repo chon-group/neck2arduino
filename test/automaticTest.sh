@@ -209,7 +209,7 @@ echo ""
 if echo "$JSON_ARRAY" | "$JQ" -e '
     any(.[]; 
         .apparatus == "validationBody" and
-        .bodyResponse == "executed" and
+        .response == "executed" and
         .request == "getPercepts" and
         (.apparatusID | type) == "number"
     )
@@ -385,7 +385,7 @@ JSON_ARRAY=$(printf '%s\n' "$JSON_RESPONSE" | "$JQ" -s -c '.')
 if echo "$JSON_ARRAY" | "$JQ" -e '
     any(.[];
         .apparatus == "validationBody" and
-        .bodyResponse == "executed" and
+        .response == "executed" and
         .request == "getActions" and
         (.apparatusID | type) == "number"
     )
@@ -458,7 +458,7 @@ JSON_ARRAY=$(printf '%s\n' "$JSON_RESPONSE" | "$JQ" -s -c '.')
 if echo "$JSON_ARRAY" | "$JQ" -e '
     any(.[];
         .apparatus == "validationBody" and
-        .bodyResponse == "executed" and
+        .response == "executed" and
         .request == "getKnowHow" and
         (.apparatusID | type) == "number"
     )
@@ -551,7 +551,7 @@ if echo "$JSON_ARRAY" | "$JQ" -e '
             .request == "setRunning" and
             .element == "actuator"
         )
-        | .bodyResponse
+        | .response
     ] == ["executed", "already"]
 ' >/dev/null
 then
@@ -599,7 +599,7 @@ if echo "$JSON_ARRAY" | "$JQ" -e '
             .request == "setRunning" and
             .element == "actuator"
         )
-        | .bodyResponse
+        | .response
     ] == ["executed", "invalid", "executed"]
 ' >/dev/null
 then
@@ -666,7 +666,7 @@ fi
 if echo "$JSON_ARRAY" | "$JQ" -e '
     any(.[];
         .apparatus == "validationBody" and
-        .bodyResponse == "executed" and
+        .response == "executed" and
         .request == "testTypes" and
         .element == "actuator" and
         (.apparatusID | type) == "number"
@@ -717,7 +717,7 @@ JSON_ARRAY=$(printf '%s\n' "$JSON_RESPONSE" | "$JQ" -s -c '.')
 if echo "$JSON_ARRAY" | "$JQ" -e '
     any(.[];
         .apparatus == "validationBody" and
-        .bodyResponse == "invalid" and
+        .response == "invalid" and
         .request == "testTypes" and
         .element == "actuator" and
         (.apparatusID | type) == "number"
@@ -807,7 +807,7 @@ fi
 if echo "$JSON_ARRAY" | "$JQ" -e '
     any(.[];
         .apparatus == "validationBody" and
-        .bodyResponse == "executed" and
+        .response == "executed" and
         .request == "testTrieb" and
         .element == "actuator" and
         (.apparatusID | type) == "number"
@@ -857,7 +857,7 @@ JSON_ARRAY=$(printf '%s\n' "$JSON_RESPONSE" | "$JQ" -s -c '.')
 if echo "$JSON_ARRAY" | "$JQ" -e '
     any(.[];
         .apparatus == "validationBody" and
-        .bodyResponse == "unable" and
+        .response == "unable" and
         .request == "returnUnable" and
         .element == "actuator" and
         (.apparatusID | type) == "number"
@@ -876,7 +876,7 @@ fi
 if echo "$JSON_ARRAY" | "$JQ" -e '
     any(.[];
         .apparatus == "validationBody" and
-        .bodyResponse == "rejected" and
+        .response == "rejected" and
         .request == "returnRejected" and
         .element == "actuator" and
         (.apparatusID | type) == "number"
@@ -895,7 +895,7 @@ fi
 if echo "$JSON_ARRAY" | "$JQ" -e '
     any(.[];
         .apparatus == "validationBody" and
-        .bodyResponse == "unknown" and
+        .response == "unknown" and
         .request == "actionThatDoesNotExist" and
         (.apparatusID | type) == "number"
     )
@@ -946,7 +946,7 @@ if echo "$JSON_ARRAY" | "$JQ" -e '
         .[]
         | select(
             .request == "getPercepts" and
-            .bodyResponse == "executed"
+            .response == "executed"
         )
     ]
     | length == 3

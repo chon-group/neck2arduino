@@ -284,24 +284,8 @@ void embody() {
     while (!_jslp.incoming()) {
       /* waiting for the embodiment request */
     }
-
-    if (!_JSONmsg["msg"].isNull() &&
-        strcmp(_JSONmsg["msg"], "embody") == 0) {
-
-      _JSONmsg.clear();
-      _JSONmsg["apparatus"]    = _name;
-      _JSONmsg["bodyResponse"] = actionResponseToStr(ActionResponse::EXECUTED);
-      _JSONmsg["request"]      = "embody";
-      _JSONmsg["apparatusID"]  = _apparatusID;
-
-      _jslp.startTransmission();
-      _jslp.transmit(_JSONmsg);
-      _jslp.endTransmission();
-    }
-
     _begun = true;
   }
-
   bodyCycle();
 }
 
@@ -467,10 +451,9 @@ void bodyCycle() {
         if (!any) {
           _JSONmsg.clear();
 
-          _JSONmsg["apparatus"]    = _name;
-          _JSONmsg["bodyResponse"] =
-            actionResponseToStr(ActionResponse::UNKNOWN);
           _JSONmsg["request"]      = action;
+          _JSONmsg["response"]     = actionResponseToStr(ActionResponse::UNKNOWN);
+          _JSONmsg["apparatus"]    = _name;
           _JSONmsg["apparatusID"]  = _apparatusID;
 
           _jslp.transmit(_JSONmsg);
@@ -507,10 +490,9 @@ void bodyCycle() {
      */
     _JSONmsg.clear();
 
-    _JSONmsg["apparatus"]    = _name;
-    _JSONmsg["bodyResponse"] =
-      actionResponseToStr(ActionResponse::EXECUTED);
     _JSONmsg["request"]      = "getPercepts";
+    _JSONmsg["response"]     = actionResponseToStr(ActionResponse::EXECUTED);
+    _JSONmsg["apparatus"]    = _name;
     _JSONmsg["apparatusID"]  = _apparatusID;
 
     _jslp.transmit(_JSONmsg);
@@ -595,10 +577,9 @@ void bodyCycle() {
      */
     _JSONmsg.clear();
 
-    _JSONmsg["apparatus"]    = _name;
-    _JSONmsg["bodyResponse"] =
-      actionResponseToStr(ActionResponse::EXECUTED);
     _JSONmsg["request"]      = "getActions";
+    _JSONmsg["response"]     = actionResponseToStr(ActionResponse::EXECUTED);
+    _JSONmsg["apparatus"]    = _name;
     _JSONmsg["apparatusID"]  = _apparatusID;
 
     _jslp.transmit(_JSONmsg);
@@ -651,10 +632,9 @@ void bodyCycle() {
      */
     _JSONmsg.clear();
 
-    _JSONmsg["apparatus"]    = _name;
-    _JSONmsg["bodyResponse"] =
-      actionResponseToStr(ActionResponse::EXECUTED);
     _JSONmsg["request"]      = "getKnowHow";
+    _JSONmsg["response"]     = actionResponseToStr(ActionResponse::EXECUTED);
+    _JSONmsg["apparatus"]    = _name;
     _JSONmsg["apparatusID"]  = _apparatusID;
 
     _jslp.transmit(_JSONmsg);
@@ -938,10 +918,9 @@ void bodyCycle() {
 
     _JSONmsg.clear();
 
-    _JSONmsg["apparatus"]    = _name;
-    _JSONmsg["bodyResponse"] =
-      actionResponseToStr(r);
     _JSONmsg["request"]      = actionName;
+    _JSONmsg["response"]     = actionResponseToStr(r);
+    _JSONmsg["apparatus"]    = _name;
     _JSONmsg["apparatusID"]  = _apparatusID;
     _JSONmsg["element"]      = elementName;
 
@@ -1082,7 +1061,7 @@ private:
    * used by the NECK communication protocol.
    */
   static const __FlashStringHelper*
-  perceptionResponseToStr(PerceptionResponse r) {
+  perceptionResponseToStr(Response r) {
 
     switch (r) {
 
