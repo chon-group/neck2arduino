@@ -131,7 +131,7 @@ Percept is distinct from `Sensing`: Sensing continuously acquires or updates bod
 
 An `Act` represents an intentional bodily operation requested by the BDI mind and performed through an Element.
 
-An Act returns an `ActionResponse` indicating the outcome of the requested operation, such as `EXECUTED`, `UNABLE`, `ALREADY`, `REJECTED` or `INVALID`.
+An Act returns an `Response` indicating the outcome of the requested operation, such as `EXECUTED`, `UNABLE`, `ALREADY`, `REJECTED` or `INVALID`.
 
 ```cpp
 Act(led, toggleLED) {

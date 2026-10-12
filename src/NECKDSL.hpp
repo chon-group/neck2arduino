@@ -45,7 +45,7 @@
  *
  * Act
  *   Declares an intentional bodily operation requested by the BDI mind and
- *   performed through an Element. An Act returns an ActionResponse indicating
+ *   performed through an Element. An Act returns an Response indicating
  *   the outcome of the requested operation.
  *
  * Sensing
@@ -108,7 +108,6 @@
 using NECK::NECKArgs;
 using NECK::PerceptReturn;
 
-using NECK::ActionResponse;
 using NECK::Response;
 using NECK::PerceptionType;
 
@@ -282,11 +281,11 @@ using NECK::EXTEROCEPTION;
  */
 
 #define Act(EL, ACTNAME) \
-  static NECK::ActionResponse \
+  static NECK::Response \
     NECK_CONCAT(__neck_action_body_, NECK_CONCAT(EL, NECK_CONCAT(_, ACTNAME))) \
     (const NECK::NECKArgs& ActionArgs, NECK::Trieb trieb); \
   \
-  static NECK::ActionResponse \
+  static NECK::Response \
     NECK_CONCAT(__neck_action_fn_, NECK_CONCAT(EL, NECK_CONCAT(_, ACTNAME))) \
     (const NECK::NECKArgs& ActionArgs); \
   \
@@ -304,7 +303,7 @@ using NECK::EXTEROCEPTION;
   static NECK_CONCAT(__neck_action_reg_, NECK_CONCAT(EL, NECK_CONCAT(_, ACTNAME))) \
     NECK_CONCAT(__neck_action_reg_instance_, NECK_CONCAT(EL, NECK_CONCAT(_, ACTNAME))); \
   \
-  static NECK::ActionResponse \
+  static NECK::Response \
     NECK_CONCAT(__neck_action_fn_, NECK_CONCAT(EL, NECK_CONCAT(_, ACTNAME))) \
     (const NECK::NECKArgs& ActionArgs) { \
       return NECK_CONCAT(__neck_action_body_, NECK_CONCAT(EL, NECK_CONCAT(_, ACTNAME)))( \
@@ -313,7 +312,7 @@ using NECK::EXTEROCEPTION;
       ); \
     } \
   \
-  static NECK::ActionResponse \
+  static NECK::Response \
     NECK_CONCAT(__neck_action_body_, NECK_CONCAT(EL, NECK_CONCAT(_, ACTNAME))) \
     (const NECK::NECKArgs& ActionArgs, NECK::Trieb trieb)
 

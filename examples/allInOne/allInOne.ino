@@ -136,7 +136,7 @@ Act(actuator, testTrieb) {
   return EXECUTED;
 }
 
-// Other ActionResponse values
+// Other Response values
 Act(actuator, returnUnable) {
   return UNABLE;
 }

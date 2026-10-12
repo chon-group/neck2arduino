@@ -34,7 +34,7 @@
  *
  *   Act
  *     An intentional bodily operation requested by the BDI mind and performed
- *     through an Element. An Act returns an ActionResponse indicating the
+ *     through an Element. An Act returns an Response indicating the
  *     outcome of the requested operation.
  *
  *   Percept
@@ -148,9 +148,9 @@ struct ElementDef {
  * Function implementing an Act.
  *
  * An Act receives arguments supplied by the BDI mind and returns an
- * ActionResponse describing the outcome of the requested operation.
+ * Response describing the outcome of the requested operation.
  */
-typedef ActionResponse (*ActionFn)(
+typedef Response (*ActionFn)(
   const NECKArgs& ActionArgs
 );
 

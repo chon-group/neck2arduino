@@ -53,10 +53,10 @@ static const char BUILD_SIGNATURE[] =
 /*
  * Classifies an Element according to its physical role.
  */
-enum ElementType : uint8_t {
-  SENSOR,
-  EFFECTOR
-};
+// enum ElementType : uint8_t {
+//   SENSOR,
+//   EFFECTOR
+// };
 
 
 /*
@@ -79,18 +79,7 @@ enum ElementType : uint8_t {
  *
  * UNKNOWN
  *   No corresponding Act could be found.
- */
-enum ActionResponse : uint8_t {
-  EXECUTED,
-  UNABLE,
-  ALREADY,
-  REJECTED,
-  INVALID,
-  UNKNOWN
-};
 
-
-/*
  * Result of a Percept evaluated by the body.
  *
  * PERCEPTED
@@ -103,6 +92,12 @@ enum ActionResponse : uint8_t {
  *   The percept exists, but its relevant value has not changed.
  */
 enum Response : uint8_t {
+  EXECUTED,
+  UNABLE,
+  ALREADY,
+  REJECTED,
+  INVALID,
+  UNKNOWN,
   PERCEPTED,
   UNAVAILABLE,
   UNCHANGED
