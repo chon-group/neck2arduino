@@ -335,11 +335,10 @@ fi
 
 if echo "$JSON_ARRAY" | "$JQ" -e '
     any(.[];
-        .apparatus == "validationBody" and
         .trieb == "perceptObserved" and
         .element == "sensor" and
         .drang == 0.25 and
-        (.apparatusID | type) == "number"
+        (has("args") | not)
     )
 ' >/dev/null
 then
@@ -401,7 +400,7 @@ if echo "$JSON_ARRAY" | "$JQ" -e '
     (
         [.[] | select(.action != null) | .action] | sort
     ) == (
-        ["returnRejected", "returnUnable", "setRunning", "testTrieb", "testTypes"] | sort
+        ["resetTriebs", "returnRejected", "returnUnable", "setDrang", "setRunning", "testTrieb", "testTypes"] | sort
     )
 ' >/dev/null
 then
@@ -622,7 +621,7 @@ echo ""
 
 RAW_RESPONSE=$(python3 neckClient.py \
     --port "$ARDUINO_PORT" \
-    --request '{"msg":"testTypes","args":[true,-7,4000000000,1.25,"neck"]}')
+    --request '{"msg":"testTypes","args":[true,-7,4000000000,1.25,"neck"]} | {"msg":"getPercepts"}')
 
 JSON_RESPONSE=$(printf '%s\n' "$RAW_RESPONSE" \
     | grep '^<< ' \
@@ -641,17 +640,14 @@ echo ""
 JSON_ARRAY=$(printf '%s\n' "$JSON_RESPONSE" | "$JQ" -s -c '.')
 
 #
-# Validate typedImpulse trieb
+# Validate standalone typedImpulse on the following getPercepts request.
+# The Trieb has no args and is not emitted directly by the action.
+# Both requests are sent in one serial session to preserve the device state.
 #
 if echo "$JSON_ARRAY" | "$JQ" -e '
-    any(.[];
-        .apparatus == "validationBody" and
-        .trieb == "typedImpulse" and
-        .element == "actuator" and
-        .drang == 0.5 and
-        .args == [true, -7, 4000000000, 1.25, "neck"] and
-        (.apparatusID | type) == "number"
-    )
+    ([.[] | select(.request == "getPercepts" and .response == "executed")] | length) == 1 and
+    ([.[] | select(.trieb == "typedImpulse" and .element == "actuator" and
+                    .drang == 0.5 and (has("args") | not))] | length) == 1
 ' >/dev/null
 then
     echo "testTypes typedImpulse trieb: PASS"
@@ -692,7 +688,7 @@ echo ""
 
 RAW_RESPONSE=$(python3 neckClient.py \
     --port "$ARDUINO_PORT" \
-    --request '{"msg":"testTypes","args":[true,-7,1000,1.25,"neck"]}')
+    --request '{"msg":"testTypes","args":[true,-7,1000,1.25,"neck"]} | {"msg":"getPercepts"}')
 
 JSON_RESPONSE=$(printf '%s\n' "$RAW_RESPONSE" \
     | grep '^<< ' \
@@ -731,17 +727,16 @@ else
 fi
 
 #
-# An invalid action must not emit typedImpulse.
+# An invalid action must not activate typedImpulse in the subsequent getPercepts.
 #
 if echo "$JSON_ARRAY" | "$JQ" -e '
-    any(.[];
-        .trieb == "typedImpulse"
-    ) | not
+    ([.[] | select(.request == "getPercepts" and .response == "executed")] | length) == 1 and
+    ([.[] | select(.trieb == "typedImpulse")] | length) == 0
 ' >/dev/null
 then
-    echo "testTypes invalid emits no trieb: PASS"
+    echo "testTypes invalid activates no trieb: PASS"
 else
-    echo "testTypes invalid emits no trieb: FAIL"
+    echo "testTypes invalid activates no trieb: FAIL"
     exit 1
 fi
 
@@ -752,13 +747,17 @@ echo "========================================"
 
 echo ""
 echo "========================================"
-echo "Testing NECK trieb normalization..."
+echo "Testing NECK Trieb intensity and transmission..."
 echo "========================================"
 echo ""
 
+# Each request is handled in one serial session. Action responses must not
+# contain Triebs; only the subsequent getPercepts may include them.
+# Boundary checks: 0.111 (active), 0 (silent), -0.7 (silent),
+# 5 (silent), 0.001 (active), 1 (active).
 RAW_RESPONSE=$(python3 neckClient.py \
     --port "$ARDUINO_PORT" \
-    --request '{"msg":"testTrieb"}')
+    --request '{"msg":"testTrieb"} | {"msg":"getPercepts"} | {"msg":"setDrang","args":[0.0]} | {"msg":"getPercepts"}')
 
 JSON_RESPONSE=$(printf '%s\n' "$RAW_RESPONSE" \
     | grep '^<< ' \
@@ -769,54 +768,71 @@ JSON_RESPONSE=$(printf '%s\n' "$RAW_RESPONSE" \
     | sed '/^[[:space:]]*$/d')
 
 JSON_RESPONSE=$(printf '%s\n' "$JSON_RESPONSE" | "$JQ" -c .)
-
 echo "Parsed JSON:"
 echo "$JSON_RESPONSE" | "$JQ" -c .
 echo ""
-
 JSON_ARRAY=$(printf '%s\n' "$JSON_RESPONSE" | "$JQ" -s -c '.')
 
-#
-# Validate drang sequence:
-# omitted -> 1
-# 0.111   -> 0.111
-# 0       -> 0
-# -0.7    -> 0
-# 5       -> 1
-#
+# Check the ordered responses, including that each active Trieb belongs
+# to its own getPercepts transaction and no Trieb is emitted by an action.
+# Every getPercepts response includes seven percepts plus the header;
+# identify the boundaries using response headers rather than message counts.
 if echo "$JSON_ARRAY" | "$JQ" -e '
-    [
-        .[]
-        | select(
-            .trieb == "attention" and
-            .element == "actuator"
-        )
-        | .drang
-    ] == [1, 0.111, 0, 0, 1]
-' >/dev/null
-then
-    echo "testTrieb drang normalization: PASS"
-else
-    echo "testTrieb drang normalization: FAIL"
-    exit 1
-fi
-
-#
-# Validate action response
-#
-if echo "$JSON_ARRAY" | "$JQ" -e '
-    any(.[];
-        .apparatus == "validationBody" and
-        .response == "executed" and
-        .request == "testTrieb" and
-        .element == "actuator" and
-        (.apparatusID | type) == "number"
+    (
+        [.[] | select(.request == "testTrieb" or .request == "setDrang") | .response]
+        == ["executed", "executed"]
+    ) and
+    (
+        [.[] | select(.request == "getPercepts" and .response == "executed")]
+        | length == 2
+    ) and
+    (
+        [.[] | select(.trieb == "attention") | .drang]
+        == [0.111]
+    ) and
+    (
+        [.[] | select(.trieb == "attention")]
+        | all(.[]; .element == "actuator" and (has("args") | not))
     )
 ' >/dev/null
 then
-    echo "testTrieb executed: PASS"
+    echo "Trieb intensity and suppression: PASS"
 else
-    echo "testTrieb executed: FAIL"
+    echo "Trieb intensity and suppression: FAIL"
+    exit 1
+fi
+
+# Check exact placement in the response stream: each Trieb must occur after
+# the corresponding getPercepts header and before the next response header.
+if echo "$JSON_ARRAY" | "$JQ" -e '
+    reduce .[] as $item ({groups: [], current: null};
+        if $item.request != null then
+            if .current == null then
+                .current = {request: $item.request, triebs: []}
+            else
+                .groups += [.current]
+                | .current = {request: $item.request, triebs: []}
+            end
+        elif $item.trieb != null and .current != null then
+            .current.triebs += [$item]
+        else
+            .
+        end
+    )
+    | .groups += (if .current == null then [] else [.current] end)
+    | [.groups[]
+        | select(.request == "getPercepts")
+        | [.triebs[]
+            | select(.trieb == "attention")
+            | .drang
+          ]
+      ]
+    | . == [[0.111], []]
+' >/dev/null
+then
+    echo "Trieb request-scoped transmission: PASS"
+else
+    echo "Trieb request-scoped transmission: FAIL"
     exit 1
 fi
 
@@ -824,6 +840,87 @@ echo ""
 echo "========================================"
 echo "NECK TRIEB TEST: PASS"
 echo "========================================"
+
+# --------------------------------------------------------------------------
+# Trieb Drang boundary tests
+# --------------------------------------------------------------------------
+
+echo ""
+echo "========================================"
+echo "Testing NECK Trieb Drang boundaries..."
+echo "========================================"
+echo ""
+
+test_drang_boundary() {
+    local value="$1"
+    local expected="$2"
+    local raw_response
+    local json_response
+    local json_array
+
+    raw_response=$(python3 neckClient.py \
+        --port "$ARDUINO_PORT" \
+        --request "{\"msg\":\"setDrang\",\"args\":[$value]} | {\"msg\":\"getPercepts\"}")
+
+    json_response=$(printf '%s\n' "$raw_response" \
+        | grep '^<< ' \
+        | sed 's/^<< //' \
+        | sed 's/\[END\]//g' \
+        | sed 's/\[LF\]/\n/g' \
+        | sed 's/\[RS\]//g' \
+        | sed '/^[[:space:]]*$/d')
+
+    json_array=$(printf '%s\n' "$json_response" | "$JQ" -s -c '.')
+
+    if ! printf '%s\n' "$json_array" | "$JQ" -e \
+        --argjson value "$value" \
+        --arg expected "$expected" '
+        (
+            [.[] | select(.request == "setDrang") | .response]
+            == ["executed"]
+        ) and
+        (
+            [.[] | select(.request == "getPercepts" and .response == "executed")]
+            | length == 1
+        ) and
+        (
+            [.[] | select(.trieb == "perceptObserved" and
+                          .element == "sensor" and
+                          .drang == 0.25)]
+            | length == 1
+        ) and
+        (
+            if $expected == "transmitted" then
+                [.[] | select(.trieb == "attention")]
+                | length == 1 and
+                  .[0].element == "actuator" and
+                  .[0].drang == $value and
+                  (.[0] | has("args") | not)
+            else
+                [.[] | select(.trieb == "attention")]
+                | length == 0
+            end
+        )
+    ' >/dev/null
+    then
+        echo "Drang $value ($expected): FAIL"
+        echo "$json_response"
+        exit 1
+    fi
+
+    echo "Drang $value ($expected): PASS"
+}
+
+test_drang_boundary -0.7  suppressed
+test_drang_boundary 5.0   suppressed
+test_drang_boundary 0.001 transmitted
+test_drang_boundary 1.0   transmitted
+
+echo ""
+echo "========================================"
+echo "NECK TRIEB BOUNDARY TEST: PASS"
+echo "========================================"
+
 
 echo ""
 echo "========================================"

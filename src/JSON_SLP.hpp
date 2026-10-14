@@ -123,7 +123,7 @@
 #pragma once
 
 #include "Arduino.h"
-#include "../ArduinoJson-7.4.2/src/ArduinoJson.h"
+#include <ArduinoJson.h>
 
 
 class JSON_SLP {

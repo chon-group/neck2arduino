@@ -6,6 +6,10 @@ uint32_t behavingCycles = 0;
 bool actuatorRunning = false;
 uint32_t movementSteps = 0;
 
+// Deterministic state used by the standalone Trieb tests.
+bool typedImpulseActive = false;
+double attentionDrang = 0.0;
+
 
 Apparatus(validationBody) {
   Element(sensor);
@@ -34,9 +38,8 @@ Behaving(actuator) {
    Percepts
    -------------------------------------------------------------------------- */
 
-// EXTEROCEPTION + float + trieb inside Percept
+// EXTEROCEPTION + float
 Percept(sensor, externalValue, EXTEROCEPTION) {
-  trieb("perceptObserved", 0.25);
   return 23.5f;
 }
 
@@ -92,6 +95,25 @@ Percept(sensor, cycleDelta, PROPRIOCEPTION) {
 }
 
 /* --------------------------------------------------------------------------
+   Triebs
+   -------------------------------------------------------------------------- */
+
+// Independently declared bodily demand, evaluated on getPercepts.
+Trieb(sensor, perceptObserved) {
+  return 0.25;
+}
+
+// Enabled by a successful testTypes action.
+Trieb(actuator, typedImpulse) {
+  return typedImpulseActive ? 0.5 : 0.0;
+}
+
+// Intensity is controlled by testTrieb or setDrang.
+Trieb(actuator, attention) {
+  return attentionDrang;
+}
+
+/* --------------------------------------------------------------------------
    Acts
    -------------------------------------------------------------------------- */
 
@@ -109,7 +131,7 @@ Act(actuator, setRunning) {
   return EXECUTED;
 }
 
-// Every NECKArgs input type + trieb carrying args
+// Every NECKArgs input type; successful validation activates a Trieb
 Act(actuator, testTypes) {
   if (ActionArgs.size() != 5)
     return INVALID;
@@ -120,19 +142,31 @@ Act(actuator, testTypes) {
   if (!ActionArgs.isFloat(3))  return INVALID;
   if (!ActionArgs.isString(4)) return INVALID;
 
-  trieb("typedImpulse", ActionArgs, 0.5);
+  typedImpulseActive = true;
 
   return EXECUTED;
 }
 
-// Default drang + saturation
+// Activate a registered Trieb with a fractional Drang.
 Act(actuator, testTrieb) {
-  trieb("attention");
-  trieb("attention", 0.111);
-  trieb("attention", 0);
-  trieb("attention", -0.7);
-  trieb("attention", 5);
+  attentionDrang = 0.111;
+  return EXECUTED;
+}
 
+// Configure a registered Trieb deterministically for boundary tests.
+// Values outside (0, 1] are not transmitted by streamTriebs().
+Act(actuator, setDrang) {
+  if (ActionArgs.size() != 1 || !ActionArgs.isFloat(0))
+    return INVALID;
+
+  attentionDrang = ActionArgs.asFloat(0);
+  return EXECUTED;
+}
+
+// Restore the initial Trieb test state.
+Act(actuator, resetTriebs) {
+  typedImpulseActive = false;
+  attentionDrang = 0.0;
   return EXECUTED;
 }
 

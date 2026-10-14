@@ -52,7 +52,8 @@ Conceptually:
                  │           Mind             │
                  │          (BDI)             │
                  │            │               │
-                 │   Percept ↑│↓ Act          │
+                 │ Percept ↑  │  ↓ Act        │
+                 │ Trieb   ↑  │               │
                  │            │               │
                  │      ┌──── Body ────┐      │
                  │      │              │      │
@@ -60,7 +61,7 @@ Conceptually:
                  │      │      │       │      │
                  │      │   Element    │      │
                  │      └──────┬───────┘      │
-                 └─────────────┼──────────────┘
+                 └──────────────┼──────────────┘
                     Sensing ↑  │  ↓ Behaving
                                │
                         Physical World
@@ -68,7 +69,7 @@ Conceptually:
 
 The Apparatus therefore operates at the intersection of two relationships:
 
-- **Mind ↔ Body** — through `Percept` and `Act`;
+- **Mind ↔ Body** — through `Percept`, `Trieb` and `Act`;
 - **Body ↔ Physical World** — through `Sensing` and `Behaving`.
 
 ---
@@ -105,13 +106,33 @@ Apparatus(myApparatus) {
 
 The current embedded NECK model allows exactly one `Apparatus` per microcontroller.
 
+The `Apparatus` declaration also generates the Arduino `setup()` and `loop()` functions. **Do not declare them in your sketch**:
+
+- `setup()` runs the optional `Preparation` block, starts the serial port (115200 baud) and waits for the initial embodiment handshake from the BDI mind;
+- `loop()` continuously runs the body cycle.
+
+---
+
+## Preparation
+
+`Preparation` is an optional block executed once, during `setup()`, before the embodiment process begins. It is the place for hardware initialization such as pin configuration or sensor setup.
+
+```cpp
+Preparation {
+    pinMode(LED_PIN, OUTPUT);
+    pinMode(SENSOR_PIN, INPUT);
+}
+```
+
+Only one `Preparation` block may be declared per application.
+
 ---
 
 ## Percept
 
 A `Percept` represents information that an Element exposes to the BDI mind when requested.
 
-A Percept returns a perceived value, a set of values, or a `Response`. Percepts are classified according to their source as `INTEROCEPTION`, `PROPRIOCEPTION` or `EXTEROCEPTION`.
+A Percept returns a perceived value, a set of values (`NECKArgs`), or a `Response` such as `UNAVAILABLE` or `UNCHANGED`. Percepts are classified according to their source as `INTEROCEPTION`, `PROPRIOCEPTION` or `EXTEROCEPTION`.
 
 ```cpp
 Percept(led, ledStatus, PROPRIOCEPTION) {
@@ -123,6 +144,19 @@ Percept(motor, motorStatus, PROPRIOCEPTION) {
 }
 ```
 
+Multiple values of different types can be returned at once:
+
+```cpp
+Percept(sensor, mixedValues, INTEROCEPTION) {
+    NECKArgs values;
+    values.add(true);
+    values.add((int32_t)-7);
+    values.add(1.25f);
+    values.add("neck");
+    return values;
+}
+```
+
 Percept is distinct from `Sensing`: Sensing continuously acquires or updates bodily state, whereas a Percept exposes information to the BDI mind when requested.
 
 ---
@@ -131,7 +165,7 @@ Percept is distinct from `Sensing`: Sensing continuously acquires or updates bod
 
 An `Act` represents an intentional bodily operation requested by the BDI mind and performed through an Element.
 
-An Act returns an `Response` indicating the outcome of the requested operation, such as `EXECUTED`, `UNABLE`, `ALREADY`, `REJECTED` or `INVALID`.
+An Act returns a `Response` indicating the outcome of the requested operation, such as `EXECUTED`, `UNABLE`, `ALREADY`, `REJECTED` or `INVALID`.
 
 ```cpp
 Act(led, toggleLED) {
@@ -140,7 +174,7 @@ Act(led, toggleLED) {
 }
 ```
 
-Arguments supplied by the BDI mind are available through `ActionArgs`:
+Arguments supplied by the BDI mind are available through `ActionArgs`, which preserves the types `bool`, `int32_t`, `uint32_t`, `float` and `String`:
 
 ```cpp
 Act(motor, machine) {
@@ -177,6 +211,8 @@ Sensing(sensor) {
 }
 ```
 
+Each Element may declare at most one `Sensing` process.
+
 ---
 
 ## Behaving
@@ -193,19 +229,13 @@ Behaving(motor) {
 }
 ```
 
+Each Element may declare at most one `Behaving` process.
+
 ---
 
 ## Embodiment Cycle
 
-The runtime of an Apparatus is coordinated by `embody()`:
-
-```cpp
-void loop() {
-    myApparatus.embody();
-}
-```
-
-Each embodiment cycle executes:
+The runtime of an Apparatus is coordinated by the cycle generated in `loop()`:
 
 ```text
 sensing();
@@ -213,7 +243,7 @@ inhabitance();
 behaving();
 ```
 
-The body first updates its physical state through Sensing. `inhabitance()` then maintains the operational interaction between body and BDI mind. Finally, Behaving allows bodily processes to continue in the physical world.
+The body first updates its physical state through Sensing. `inhabitance()` then maintains the operational interaction between body and BDI mind, processing at most one incoming request without blocking bodily behavior. Finally, Behaving allows bodily processes to continue in the physical world.
 
 ---
 
@@ -223,19 +253,22 @@ The body first updates its physical state through Sensing. `inhabitance()` then 
 
 A Trieb expresses a bodily demand toward the BDI mind and carries a `Drang` value representing its intensity. It is not itself a BDI desire, goal or intention; it allows bodily conditions to participate in the cognitive process without placing deliberation inside the body.
 
-Within `Act` and `Percept`, the callable object `trieb` is automatically available:
+A Trieb is declared independently, like a Percept or an Act, and returns its Drang:
 
 ```cpp
-Percept(sensor, temperature, INTEROCEPTION) {
-
+Trieb(sensor, coolDown) {
     if (temperature > 70)
-        trieb("coolDown", 0.85);
+        return 0.85;
 
-    return temperature;
+    return false;
 }
 ```
 
-A Trieb generated by an Element is conveyed through its Apparatus to the BDI mind.
+The returned Drang must be within `(0.0, 1.0]` to be transmitted. A value of `0.0` or `false` (or any value outside this interval) suppresses the transmission.
+
+Triebs are evaluated when the BDI mind requests percepts (`getPercepts`) and are streamed in the same transmission, right after the percepts. Since `Sensing` runs before `inhabitance()`, a Trieb may use bodily state updated by Sensing, but it does not require a Sensing or Percept declaration to exist.
+
+Multiple Triebs may be associated with the same Element, provided each has a distinct name.
 
 ---
 
@@ -243,11 +276,21 @@ A Trieb generated by an Element is conveyed through its Apparatus to the BDI min
 
 `TacitKnowledge` represents practical know-how associated with bodily capabilities.
 
-It allows knowledge associated with the physical constitution of an Apparatus to be exposed to the BDI mind through `getKnowHow`.
+It allows knowledge associated with the physical constitution of an Apparatus to be exposed to the BDI mind through `getKnowHow`. Entries are stored in program memory and may optionally carry a context.
 
 ```cpp
 TacitKnowledge(
     startMovement,
+    "+!start <- .myBody.act(move)."
+);
+```
+
+With a context:
+
+```cpp
+TacitKnowledge(
+    safeMovement,
+    "battery(Level) & Level > 20",
     "+!start <- .myBody.act(move)."
 );
 ```
@@ -258,7 +301,20 @@ An Apparatus can therefore provide not only physical capabilities, but also the 
 
 ## Communication Protocol
 
-NECK uses **JSON-SLP**, based on JSON-seq over SLIP over Serial, for the operational interaction between an Apparatus and the BDI mind.
+NECK uses **JSON-SLP** (`JSON_SLP.hpp`) for the operational interaction between an Apparatus and the BDI mind. It is inspired by [RFC 1055](https://www.rfc-editor.org/rfc/rfc1055) (SLIP) and [RFC 7464](https://www.rfc-editor.org/rfc/rfc7464) (JSON text sequences), without implementing either in full, and works over any Arduino `Stream` (NECK uses `Serial`).
+
+A transmission is delimited by `END` (`0xC0`) and carries one or more JSON records, each framed as `RS <JSON> LF` (`0x1E`, `0x0A`):
+
+```text
+0xC0
+  0x1E {"msg":"first"}  0x0A
+  0x1E {"msg":"second"} 0x0A
+0xC0
+```
+
+> The SLIP escaping mechanism is **not** implemented. An incoming transmission that stays idle for more than 2.2 s is closed by timeout.
+
+### Requests
 
 Typical requests include:
 
@@ -271,19 +327,62 @@ Typical requests include:
 ```
 
 ```json
+{"msg":"getActions","element":"led"}
+```
+
+```json
 {"msg":"getKnowHow"}
 ```
 
-An Act may be requested directly by its name:
+An Act may be requested directly by its name (broadcast to every Element that declares it):
 
 ```json
 {"msg":"toggleLED"}
 ```
 
+to a specific Element:
+
+```json
+{"msg":"toggleLED","element":"led"}
+```
+
 or with arguments:
 
 ```json
-{"msg":"machine","args":["goAhead"]}
+{"msg":"machine","element":"motor","args":["goAhead"]}
+```
+
+### Responses
+
+Every response starts with a header record identifying the request and the Apparatus (`apparatusID` is derived from the build date/time and the Apparatus name):
+
+```json
+{"request":"getPercepts","response":"executed","apparatus":"myApparatus","apparatusID":123456789}
+```
+
+`getPercepts` then streams one record per Percept, followed by the active Triebs:
+
+```json
+{"percept":"ledStatus","element":"led","type":"proprioception","status":"percepted","args":[true]}
+{"trieb":"coolDown","element":"sensor","drang":0.85}
+```
+
+`getActions` streams one record per Act:
+
+```json
+{"action":"toggleLED","element":"led"}
+```
+
+`getKnowHow` streams one record per TacitKnowledge entry:
+
+```json
+{"skill":"safeMovement","context":"battery(Level) & Level > 20","plan":"+!start <- .myBody.act(move)."}
+```
+
+An Act request is answered with its outcome (`executed`, `unable`, `already`, `rejected`, `invalid` or `unknown`):
+
+```json
+{"request":"toggleLED","response":"executed","apparatus":"myApparatus","apparatusID":123456789,"element":"led"}
 ```
 
 ---
@@ -295,21 +394,23 @@ or with arguments:
 
 #define LED_PIN 13
 
-/*Apparatus Description*/
+/* Apparatus description (also generates setup() and loop()) */
 Apparatus(arduinoBoard) {
-    Element(led);
+  Element(led);
 }
 
 bool blinking = false;
 bool ledStatus = false;
 unsigned long previousBlink = 0;
-void setup() {pinMode(LED_PIN, OUTPUT);}
-void loop() {arduinoBoard.embody();}
 
-/* Apparatus configuration*/
+/* Hardware initialization */
+Preparation {
+  pinMode(LED_PIN, OUTPUT);
+}
+
+/* Apparatus configuration */
 Percept(led, ledStatus, PROPRIOCEPTION) {
-  if(digitalRead(LED_PIN)) return true;
-  return false;
+  return digitalRead(LED_PIN) ? true : false;
 }
 
 Act(led, blinkOn) {
@@ -330,9 +431,9 @@ Act(led, blinkOff) {
 
 Behaving(led) {
   if (blinking && millis() - previousBlink >= 250) {
-      previousBlink = millis();
-      ledStatus = !ledStatus;
-      digitalWrite(LED_PIN, ledStatus);
+    previousBlink = millis();
+    ledStatus = !ledStatus;
+    digitalWrite(LED_PIN, ledStatus);
   }
 }
 ```

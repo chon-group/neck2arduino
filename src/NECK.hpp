@@ -165,7 +165,7 @@
 #include <stdint.h>
 #include <string.h>
 #include <stdlib.h>
-#include "../lib/JsonOverSLP/JSON_SLP.hpp"
+#include "JSON_SLP.hpp"
 
 
 /*
@@ -246,11 +246,10 @@ extern "C" {
 
 namespace NECK {
 
-    #include "NECKCore.hpp"
-    #include "NECKBody.hpp"
-    #include "NECKApparatus.hpp"
+    #include "Core.hpp"
 
 } 
+
 
 /*
  * ============================================================================
@@ -259,4 +258,4 @@ namespace NECK {
  *
  */
 
-#include "NECKDSL.hpp"
+#include "DSL.hpp"

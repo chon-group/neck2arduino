@@ -1,6 +1,6 @@
 /*
  * ============================================================================
- * NECKDSL.hpp
+ * DSL.hpp
  * ============================================================================
  *
  * User-facing Domain-Specific Language (DSL) for describing an embedded
@@ -14,6 +14,7 @@
  *     Element
  *     Act
  *     Percept
+ *     Trieb
  *     Sensing
  *     Behaving
  *     TacitKnowledge
@@ -25,7 +26,8 @@
  *                  │           Mind             │
  *                  │          (BDI)             │
  *                  │            │               │
- *                  │   Percept ↑│↓ Act          │
+ *                  │ Percept ↑  │  ↓ Act        │
+ *                  │ Trieb   ↑  │               │
  *                  │            │               │
  *                  │      ┌──── Body ────┐      │
  *                  │      │              │      │
@@ -45,8 +47,17 @@
  *
  * Act
  *   Declares an intentional bodily operation requested by the BDI mind and
- *   performed through an Element. An Act returns an Response indicating
+ *   performed through an Element. An Act returns a Response indicating
  *   the outcome of the requested operation.
+ *
+ * Trieb
+ *   Declares a bodily demand originating from an Element. A Trieb returns
+ *   a numeric value representing its intensity (Drang), between 0 and 1.
+ *   A value greater than 0 causes the Trieb to be transmitted to the BDI
+ *   mind, while 0 or false suppresses its transmission.
+ *
+ *   Trieb declarations are evaluated during enhancing(), independently
+ *   of Percept requests and Act executions.
  *
  * Sensing
  *   Declares a continuous sensing process performed by an Element. Sensing
@@ -63,6 +74,12 @@
  *   Declares practical know-how associated with bodily capabilities. Tacit
  *   knowledge can be exposed to the BDI mind through getKnowHow.
  *
+ * The embodiment cycle follows this execution order:
+ *
+ *     sensing()
+ *     enhancing()
+ *     behaving()
+ *
  * The DSL allows these concepts to be expressed using declarations such as:
  *
  *     Apparatus(robot) {
@@ -76,6 +93,12 @@
  *
  *     Percept(sensor, temperature, EXTEROCEPTION) {
  *       return temp;
+ *     }
+ *
+ *     Trieb(sensor, attention) {
+ *       if (temp > THRESHOLD)
+ *         return 0.8;
+ *       return false;
  *     }
  *
  *     Act(motor, move) {
@@ -94,7 +117,7 @@
  *
  * The macros declared in this file translate these body-level declarations
  * into the internal runtime structures implemented by NECKBody.hpp and
- * NECKApparatus.hpp.
+ * Apparatus.hpp.
  *
  * Users normally do not include this file directly. It is included by
  * NECK.hpp after the NECK namespace has been closed so the DSL constructs
@@ -110,6 +133,7 @@ using NECK::PerceptReturn;
 
 using NECK::Response;
 using NECK::PerceptionType;
+
 
 using NECK::EXECUTED;
 using NECK::UNABLE;
@@ -191,7 +215,7 @@ using NECK::EXTEROCEPTION;
   bool __neck_only_one_Apparatus_per_Microcontroller;   \
   NECK::Apparatus NAME(#NAME);                          \
   void setup() {                                        \
-    if (__neck_preparation) {__neck_preparation();}     \
+    NECK::Apparatus::prepare();                          \
     Serial.begin(115200);                               \
     NAME.embody();                                      \
   }                                                     \
@@ -214,7 +238,7 @@ using NECK::EXTEROCEPTION;
  *     }
  *
  * An Element is associated with the currently instantiated Apparatus and
- * becomes the anchor through which Act, Percept, Sensing and Behaving
+ * becomes the anchor through which Act, Percept, Trieb, Sensing and Behaving
  * declarations are registered.
  *
  * Referencing an undeclared Element from one of these declarations causes a
@@ -248,43 +272,24 @@ using NECK::EXTEROCEPTION;
  *       if (!ActionArgs.isBool(0))
  *         return INVALID;
  *
- *       bool running =
- *         ActionArgs.asBool(0);
+ *       bool running = ActionArgs.asBool(0);
  *
  *       ...
  *
  *       return EXECUTED;
  *     }
  *
- * Inside an Act declaration, two objects are automatically available:
+ * Inside an Act declaration, ActionArgs provides the arguments supplied by
+ * the BDI mind when requesting the operation.
  *
- *   ActionArgs
- *     Arguments supplied by the BDI mind when requesting the Act.
- *
- *   trieb
- *     Callable object through which the body may emit a Trieb toward the
- *     BDI mind.
- *
- * Example:
- *
- *     trieb("attention", 0.5);
- *
- * Internally, this macro:
- *
- *   1. creates the function containing the user-provided Act body;
- *   2. creates a runtime wrapper with the ActionFn signature;
- *   3. creates a Trieb bound to the originating Element;
- *   4. registers the Act with its Apparatus during static initialization.
+ * Internally, this macro creates the Act callback and registers it with
+ * the Apparatus during static initialization.
  *
  * The Element must previously have been declared with Element(...).
  * ============================================================================
  */
 
 #define Act(EL, ACTNAME) \
-  static NECK::Response \
-    NECK_CONCAT(__neck_action_body_, NECK_CONCAT(EL, NECK_CONCAT(_, ACTNAME))) \
-    (const NECK::NECKArgs& ActionArgs, NECK::Trieb trieb); \
-  \
   static NECK::Response \
     NECK_CONCAT(__neck_action_fn_, NECK_CONCAT(EL, NECK_CONCAT(_, ACTNAME))) \
     (const NECK::NECKArgs& ActionArgs); \
@@ -305,16 +310,43 @@ using NECK::EXTEROCEPTION;
   \
   static NECK::Response \
     NECK_CONCAT(__neck_action_fn_, NECK_CONCAT(EL, NECK_CONCAT(_, ACTNAME))) \
-    (const NECK::NECKArgs& ActionArgs) { \
-      return NECK_CONCAT(__neck_action_body_, NECK_CONCAT(EL, NECK_CONCAT(_, ACTNAME)))( \
-        ActionArgs, \
-        NECK::Trieb(&(__neck_body::EL)) \
-      ); \
-    } \
-  \
-  static NECK::Response \
-    NECK_CONCAT(__neck_action_body_, NECK_CONCAT(EL, NECK_CONCAT(_, ACTNAME))) \
-    (const NECK::NECKArgs& ActionArgs, NECK::Trieb trieb)
+    (const NECK::NECKArgs& ActionArgs)
+
+// #define Act(EL, ACTNAME) \
+//   static NECK::Response \
+//     NECK_CONCAT(__neck_action_body_, NECK_CONCAT(EL, NECK_CONCAT(_, ACTNAME))) \
+//     (const NECK::NECKArgs& ActionArgs, NECK::Trieb trieb); \
+//   \
+//   static NECK::Response \
+//     NECK_CONCAT(__neck_action_fn_, NECK_CONCAT(EL, NECK_CONCAT(_, ACTNAME))) \
+//     (const NECK::NECKArgs& ActionArgs); \
+//   \
+//   struct NECK_CONCAT(__neck_action_reg_, NECK_CONCAT(EL, NECK_CONCAT(_, ACTNAME))) { \
+//     NECK_CONCAT(__neck_action_reg_, NECK_CONCAT(EL, NECK_CONCAT(_, ACTNAME)))() { \
+//       if ((__neck_body::EL).apparatus) \
+//         (__neck_body::EL).apparatus->addAction( \
+//           #EL, \
+//           #ACTNAME, \
+//           &NECK_CONCAT(__neck_action_fn_, NECK_CONCAT(EL, NECK_CONCAT(_, ACTNAME))) \
+//         ); \
+//     } \
+//   }; \
+//   \
+//   static NECK_CONCAT(__neck_action_reg_, NECK_CONCAT(EL, NECK_CONCAT(_, ACTNAME))) \
+//     NECK_CONCAT(__neck_action_reg_instance_, NECK_CONCAT(EL, NECK_CONCAT(_, ACTNAME))); \
+//   \
+//   static NECK::Response \
+//     NECK_CONCAT(__neck_action_fn_, NECK_CONCAT(EL, NECK_CONCAT(_, ACTNAME))) \
+//     (const NECK::NECKArgs& ActionArgs) { \
+//       return NECK_CONCAT(__neck_action_body_, NECK_CONCAT(EL, NECK_CONCAT(_, ACTNAME)))( \
+//         ActionArgs, \
+//         NECK::Trieb(&(__neck_body::EL)) \
+//       ); \
+//     } \
+//   \
+//   static NECK::Response \
+//     NECK_CONCAT(__neck_action_body_, NECK_CONCAT(EL, NECK_CONCAT(_, ACTNAME))) \
+//     (const NECK::NECKArgs& ActionArgs, NECK::Trieb trieb)
 
 
 /*
@@ -349,15 +381,9 @@ using NECK::EXTEROCEPTION;
  *   - NECKArgs containing multiple values;
  *   - a Response such as UNAVAILABLE or UNCHANGED.
  *
- * Inside a Percept declaration, trieb is automatically available. This allows
- * a Percept evaluation to produce a body-originated drive when appropriate.
- *
- * Example:
- *
- *     Percept(sensor, danger, EXTEROCEPTION) {
- *       trieb("attention", 0.8);
- *       return true;
- *     }
+ * A Percept provides information about bodily or environmental conditions.
+ * It is distinct from Trieb, which represents a bodily demand and returns
+ * its intensity (Drang).
  *
  * A Percept is evaluated when requested by the BDI mind. It is therefore
  * distinct from Sensing, which executes continuously as part of the body
@@ -368,11 +394,41 @@ using NECK::EXTEROCEPTION;
  * ============================================================================
  */
 
+// #define Percept(EL, PERCEPT, TYPE) \
+//   static NECK::PerceptReturn \
+//     NECK_CONCAT(__neck_percept_body_, NECK_CONCAT(EL, NECK_CONCAT(_, PERCEPT))) \
+//     (NECK::Trieb trieb); \
+//   \
+//   static NECK::PerceptReturn \
+//     NECK_CONCAT(__neck_percept_fn_, NECK_CONCAT(EL, NECK_CONCAT(_, PERCEPT)))(); \
+//   \
+//   struct NECK_CONCAT(__neck_percept_reg_, NECK_CONCAT(EL, NECK_CONCAT(_, PERCEPT))) { \
+//     NECK_CONCAT(__neck_percept_reg_, NECK_CONCAT(EL, NECK_CONCAT(_, PERCEPT)))() { \
+//       if ((__neck_body::EL).apparatus) \
+//         (__neck_body::EL).apparatus->addPerception( \
+//           #EL, \
+//           #PERCEPT, \
+//           NECK::TYPE, \
+//           &NECK_CONCAT(__neck_percept_fn_, NECK_CONCAT(EL, NECK_CONCAT(_, PERCEPT))) \
+//         ); \
+//     } \
+//   }; \
+//   \
+//   static NECK_CONCAT(__neck_percept_reg_, NECK_CONCAT(EL, NECK_CONCAT(_, PERCEPT))) \
+//     NECK_CONCAT(__neck_percept_reg_instance_, NECK_CONCAT(EL, NECK_CONCAT(_, PERCEPT))); \
+//   \
+//   static NECK::PerceptReturn \
+//     NECK_CONCAT(__neck_percept_fn_, NECK_CONCAT(EL, NECK_CONCAT(_, PERCEPT)))() { \
+//       return NECK_CONCAT(__neck_percept_body_, NECK_CONCAT(EL, NECK_CONCAT(_, PERCEPT)))( \
+//         NECK::Trieb(&(__neck_body::EL)) \
+//       ); \
+//     } \
+//   \
+//   static NECK::PerceptReturn \
+//     NECK_CONCAT(__neck_percept_body_, NECK_CONCAT(EL, NECK_CONCAT(_, PERCEPT))) \
+//     (NECK::Trieb trieb)
+
 #define Percept(EL, PERCEPT, TYPE) \
-  static NECK::PerceptReturn \
-    NECK_CONCAT(__neck_percept_body_, NECK_CONCAT(EL, NECK_CONCAT(_, PERCEPT))) \
-    (NECK::Trieb trieb); \
-  \
   static NECK::PerceptReturn \
     NECK_CONCAT(__neck_percept_fn_, NECK_CONCAT(EL, NECK_CONCAT(_, PERCEPT)))(); \
   \
@@ -392,16 +448,7 @@ using NECK::EXTEROCEPTION;
     NECK_CONCAT(__neck_percept_reg_instance_, NECK_CONCAT(EL, NECK_CONCAT(_, PERCEPT))); \
   \
   static NECK::PerceptReturn \
-    NECK_CONCAT(__neck_percept_fn_, NECK_CONCAT(EL, NECK_CONCAT(_, PERCEPT)))() { \
-      return NECK_CONCAT(__neck_percept_body_, NECK_CONCAT(EL, NECK_CONCAT(_, PERCEPT)))( \
-        NECK::Trieb(&(__neck_body::EL)) \
-      ); \
-    } \
-  \
-  static NECK::PerceptReturn \
-    NECK_CONCAT(__neck_percept_body_, NECK_CONCAT(EL, NECK_CONCAT(_, PERCEPT))) \
-    (NECK::Trieb trieb)
-
+    NECK_CONCAT(__neck_percept_fn_, NECK_CONCAT(EL, NECK_CONCAT(_, PERCEPT)))()
 
 /*
  * ============================================================================
@@ -423,13 +470,11 @@ using NECK::EXTEROCEPTION;
  *     }
  *
  * Sensing belongs to the Body <-> Physical World relationship. It executes
- * during every embodiment cycle, before inhabitance(), and may continuously
+ * during every embodiment cycle, before enhancing(), and may continuously
  * update bodily state independently of whether the BDI mind requests a
  * Percept.
  *
- * Sensing does not expose trieb. A Trieb is intentionally available only
- * within Act and Percept declarations, where the body-mind interaction takes
- * place.
+ * State updated by Sensing may be used by Percept and Trieb declarations.
  *
  * Each Element may declare at most one Sensing process. Declaring Sensing
  * twice for the same Element generates duplicate internal symbols and causes
@@ -476,15 +521,12 @@ using NECK::EXTEROCEPTION;
  *     }
  *
  * Behaving belongs to the Body <-> Physical World relationship. It executes
- * during every embodiment cycle after inhabitance().
+ * during every embodiment cycle after enhancing().
  *
  * Behaving allows bodily behavior to persist and evolve independently of new
  * deliberative commands from the BDI mind. An Act may therefore establish a
  * bodily state or initiate a behavior whose continuation occurs through
  * Behaving.
- *
- * Behaving does not expose trieb. A Trieb is intentionally available only
- * within Act and Percept declarations.
  *
  * Each Element may declare at most one Behaving process. Declaring Behaving
  * twice for the same Element generates duplicate internal symbols and causes
@@ -595,38 +637,133 @@ using NECK::EXTEROCEPTION;
 
 
 /*
- * Apparatus Preparation
+ * ============================================================================
+ * Preparation
+ * ============================================================================
  *
- * Defines an optional preparation routine executed once during the
- * Arduino setup phase. It is intended for hardware initialization
- * required by the apparatus, such as pin configuration, sensor
- * initialization, and actuator attachment.
+ * Declares an optional initialization routine for the Apparatus.
  *
- * The Preparation block is optional. When it is not declared,
- * the hidden Arduino setup() performs no apparatus-specific
- * preparation.
- */
-
-/* Function pointer to the user-defined preparation routine. */
-typedef void (*__neck_preparation_fn)();
-
-/* No preparation routine is registered by default. */
-static __neck_preparation_fn __neck_preparation = nullptr;
-
-/*
- * Registers the user-defined Preparation block.
+ * Syntax:
+ *
+ *     Preparation {
+ *       ...
+ *     }
  *
  * Example:
  *
- * Preparation {
- *     pinMode(LED_PIN, OUTPUT);
- * }
+ *     Preparation {
+ *       pinMode(LED_PIN, OUTPUT);
+ *       pinMode(SENSOR_PIN, INPUT);
+ *     }
+ *
+ * Preparation defines the hardware initialization required by the body,
+ * such as pin configuration, sensor initialization, actuator attachment,
+ * and other apparatus-specific setup operations.
+ *
+ * Unlike Sensing and Behaving, which execute continuously during the
+ * embodiment cycle, Preparation executes only once during the Arduino
+ * setup phase, before the Apparatus begins its embodiment process.
+ *
+ * Preparation is optional. When it is not declared, no user-defined
+ * preparation routine is executed.
+ *
+ * Internally, this macro:
+ *
+ *   1. creates the function containing the user-defined preparation code;
+ *   2. registers the function with Apparatus through setPreparation()
+ *      during static initialization;
+ *   3. makes the function available for execution through prepare(),
+ *      which is called by the Arduino setup() generated by the DSL.
+ *
+ * Only one Preparation block may be declared per embedded application.
+ * ============================================================================
  */
+
 #define Preparation                                      \
     void __neck_user_preparation();                      \
     static struct __neck_preparation_registrar {         \
         __neck_preparation_registrar() {                 \
-            __neck_preparation = __neck_user_preparation;\
+            NECK::Apparatus::setPreparation(             \
+                __neck_user_preparation                  \
+            );                                           \
         }                                                \
     } __neck_preparation_instance;                       \
     void __neck_user_preparation()
+
+/*
+ * ============================================================================
+ * Trieb
+ * ============================================================================
+ *
+ * Declares a bodily demand originating from an Element.
+ *
+ * Syntax:
+ *
+ *     Trieb(ElementName, TriebName) {
+ *       ...
+ *       return drang;
+ *     }
+ *
+ * Example:
+ *
+ *     Trieb(bladder, fullBladder) {
+ *       if (bladderLevel >= THRESHOLD)
+ *         return (bladderLevel - THRESHOLD) / (1.0f - THRESHOLD);
+ *
+ *       return false;
+ *     }
+ *
+ * A Trieb represents a bodily demand, while its returned value represents
+ * the intensity of that demand (Drang).
+ *
+ * The return value must be between 0.0 and 1.0:
+ *
+ *   0.0 or false
+ *     The Trieb is not transmitted.
+ *
+ *   0.0 < drang <= 1.0
+ *     The Trieb is transmitted with the returned intensity.
+ *
+ * Trieb declarations are evaluated during streamTriebs(), called by
+ * enhancing() in the embodiment cycle.
+ *
+ * Since sensing() executes before enhancing(), a Trieb may use bodily state
+ * updated by Sensing. However, a Trieb does not require a Sensing or Percept
+ * declaration to exist.
+ *
+ * Multiple Trieb declarations may be associated with the same Element,
+ * provided that each has a distinct name.
+ *
+ * Internally, this macro:
+ *
+ *   1. creates a callback returning the Drang as a double;
+ *   2. creates a registrar associated with the originating Element;
+ *   3. registers the callback with the Apparatus during static
+ *      initialization.
+ *
+ * The Element must previously have been declared with Element(...).
+ * ============================================================================
+ */
+
+
+#define Trieb(EL, NAME) \
+  static double \
+    NECK_CONCAT(__neck_trieb_fn_, NECK_CONCAT(EL, NECK_CONCAT(_, NAME)))(); \
+  \
+  struct NECK_CONCAT(__neck_trieb_reg_, NECK_CONCAT(EL, NECK_CONCAT(_, NAME))) { \
+    NECK_CONCAT(__neck_trieb_reg_, NECK_CONCAT(EL, NECK_CONCAT(_, NAME)))() { \
+      if ((__neck_body::EL).apparatus) \
+        (__neck_body::EL).apparatus->addTrieb( \
+          #EL, \
+          #NAME, \
+          &NECK_CONCAT(__neck_trieb_fn_, NECK_CONCAT(EL, NECK_CONCAT(_, NAME))) \
+        ); \
+    } \
+  }; \
+  \
+  static NECK_CONCAT(__neck_trieb_reg_, NECK_CONCAT(EL, NECK_CONCAT(_, NAME))) \
+    NECK_CONCAT(__neck_trieb_reg_instance_, NECK_CONCAT(EL, NECK_CONCAT(_, NAME))); \
+  \
+  static double \
+    NECK_CONCAT(__neck_trieb_fn_, NECK_CONCAT(EL, NECK_CONCAT(_, NAME)))()
+
